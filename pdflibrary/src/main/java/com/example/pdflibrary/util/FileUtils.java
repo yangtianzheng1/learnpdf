@@ -16,7 +16,6 @@ public class FileUtils {
                 mFdField = FD_CLASS.getDeclaredField("descriptor");
                 mFdField.setAccessible(true);
             }
-
             return mFdField.getInt(fdObj.getFileDescriptor());
         } catch (ReflectiveOperationException e) {
             e.printStackTrace();
