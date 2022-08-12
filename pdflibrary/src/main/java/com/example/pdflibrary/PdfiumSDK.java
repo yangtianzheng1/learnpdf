@@ -33,6 +33,10 @@ public class PdfiumSDK {
     private long mNativeDocPtr;
     private ParcelFileDescriptor mFileDescriptor;
 
+    public long getNativeDocPtr() {
+        return mNativeDocPtr;
+    }
+
     static {
         System.loadLibrary("pdfsdk");
         System.loadLibrary("pdfsdk_jni");
@@ -97,9 +101,9 @@ public class PdfiumSDK {
 
     private native Integer nativeGetDestPageIndex(long docPtr, long linkPtr);
 
-    private native String nativeGetLinkURI(long docPtr, long linkPtr);
+    public native String nativeGetLinkURI(long docPtr, long linkPtr);
 
-    private native RectF nativeGetLinkRect(long linkPtr);
+    public native RectF nativeGetLinkRect(long linkPtr);
 
     private native Point nativePageCoordinateToDevice(long pagePtr, int startX, int startY, int sizeX,
                                                       int sizeY, int rotate, double pageX, double pageY);
@@ -107,7 +111,7 @@ public class PdfiumSDK {
     private native PointF nativeDeviceCoordinateToPage(long pagePtr, int startX, int startY, int sizeX,
                                                        int sizeY, int rotate, int deviceX, int deviceY);
 
-    private native long nativeLoadTextPage(long docPtr, int pageIndex);
+    public native long nativeLoadTextPage(long docPtr, int pageIndex);
 
     private native long[] nativeLoadTextPages(long docPtr, int fromIndex, int toIndex);
 
@@ -118,6 +122,8 @@ public class PdfiumSDK {
     private native int nativeTextCountChars(long textPagePtr);
 
     private native int nativeTextGetText(long textPagePtr, int start_index, int count, short[] result);
+
+    public native String nativeGetText(long textPtr);
 
     private native int nativeTextGetUnicode(long textPagePtr, int index);
 
@@ -145,7 +151,17 @@ public class PdfiumSDK {
 
     private native int nativeCountSearchResult(long searchHandlePtr);
 
-    private native long nativeAddTextAnnotation(long docPtr, int pageIndex, String text, int[] color, int[] bound);
+    public native long nativeAddTextAnnotation(long docPtr, int pageIndex, String text, int[] color, int[] bound);
+
+    private native int nativeCountAndGetRects(long pagePtr, int offsetY, int offsetX, int width, int height, ArrayList<RectF> arr, long tid, int selSt, int selEd);
+
+    public native long nativeGetLinkAtCoord(long pagePtr, double width, double height, double posX, double posY);
+
+    public native int nativeGetCharIndexAtCoord(long pagePtr, double width, double height, long textPtr, double posX, double posY, double tolX, double tolY);
+
+    public native int nativeCountRects(long textPtr, int st, int ed);
+
+    public native boolean nativeGetRect(long pagePtr, int offsetY, int offsetX, int width, int height, long textPtr, RectF rect, int idx);
 
     ///////////////////////////////////////
     // PDF Native Callbacks
@@ -888,5 +904,14 @@ public class PdfiumSDK {
 
     public boolean hasSearchHandle(int index) {
         return mNativeSearchHandlePtr.containsKey(index);
+    }
+
+
+    public static final Object lock = new Object();
+
+    public int getTextRects(long pagePtr, int offsetY, int offsetX, Size size, ArrayList<RectF> arr, long textPtr, int selSt, int selEd) {
+        synchronized (lock) {
+            return nativeCountAndGetRects(pagePtr, offsetY, offsetX, size.getWidth(), size.getHeight(), arr, textPtr, selSt, selEd);
+        }
     }
 }

@@ -16,6 +16,7 @@ import android.os.Bundle;
 
 import com.example.pdflibrary.Meta;
 import com.example.pdflibrary.PdfiumSDK;
+import com.example.pdflibrary.util.BreakIteratorHelper;
 import com.example.pdflibrary.util.Size;
 import com.google.android.material.snackbar.Snackbar;
 
@@ -27,6 +28,7 @@ import android.os.ParcelFileDescriptor;
 import android.provider.OpenableColumns;
 import android.text.TextUtils;
 import android.util.Log;
+import android.view.MotionEvent;
 import android.view.View;
 
 import androidx.core.app.ActivityCompat;
@@ -44,11 +46,14 @@ import android.widget.Toast;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.util.ArrayList;
 
 public class MainActivity extends AppCompatActivity {
 
     private ActivityMainBinding binding;
     private PdfiumSDK pdfiumSDK;
+
+    private BreakIteratorHelper breakIteratorHelper;
 
     private String TAG = "yang";
 
@@ -59,6 +64,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
 
         pdfiumSDK = new PdfiumSDK();
+        breakIteratorHelper = new BreakIteratorHelper();
 
         binding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
@@ -138,26 +144,58 @@ public class MainActivity extends AppCompatActivity {
 
                 int page = 1;
 
-                pdfiumSDK.openPage(page);
+                long pagePtr = pdfiumSDK.openPage(page);
+                long textPtr = pdfiumSDK.nativeLoadTextPage(pdfiumSDK.getNativeDocPtr(), page);
                 Size size = pdfiumSDK.getPageSize(page);
                 Log.d(TAG, "Page size: " + size.toString());
 
-                int width = getScreenWidth();
-                int height = getScreenHeight();
+                int width = (int) (size.getWidth() * 1.5);
+                int height = (int) (size.getHeight() * 1.5);
 
                 Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-                pdfiumSDK.renderPageBitmap(bitmap, page, 0, 0, width, height, true);
+                pdfiumSDK.renderPageBitmap(bitmap, page, 0 ,  0 , width, height, true);
 
-                int index = pdfiumSDK.getCharacterIndex(page, 100, 100, 10, 10);
-                String result = pdfiumSDK.extractCharacters(page, index, 20);
-                Log.d(TAG, "result " + result);
-                int areaCount = pdfiumSDK.countTextRect(page, index, 20);
-                RectF rectF = pdfiumSDK.getTextRect(page,areaCount);
+                long lnkPtr = pdfiumSDK.nativeGetLinkAtCoord(pagePtr, width, height, 481 * 1.5, 710 * 1.5);
+                if(lnkPtr!=0) {
+                    String uri = pdfiumSDK.nativeGetLinkURI(pdfiumSDK.getNativeDocPtr(), lnkPtr);
+                    Log.d(TAG, " uri " + uri);
+                    RectF rect = pdfiumSDK.nativeGetLinkRect(lnkPtr);
+                    Log.d(TAG, " rect " + rect.toString());
+                }
+
+                long textId = pdfiumSDK.prepareTextInfo(page);
+                String text = pdfiumSDK.nativeGetText(textId);
+                breakIteratorHelper.setText(text);
 
                 binding.ivShow.setImageBitmap(bitmap);
+                binding.ivShow.setOnTouchListener((view, motionEvent) -> {
+                    int charIdx = pdfiumSDK.nativeGetCharIndexAtCoord(pagePtr, width, height, textPtr, motionEvent.getX(),
+                            motionEvent.getY(), 20, 20);
+                    if (charIdx >= 0 ){
+                        int ed= breakIteratorHelper.following(charIdx);
+                        int st= breakIteratorHelper.previous();
+                        try {
+                            String temp = text.substring(st, ed);
+                            Log.d(TAG, " select text " + temp);
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
 
-                Log.d(TAG, " width " + bitmap.getWidth() + " height " + bitmap.getHeight());
-                pdfiumSDK.closeDocument();
+                        int rectCount = pdfiumSDK.nativeCountRects(textPtr, charIdx, 4);
+                        if (rectCount > 0){
+                            RectF[] rects = new RectF[rectCount];
+                            for (int i = 0; i < rectCount; i++){
+                                RectF rI = new RectF();
+                                pdfiumSDK.nativeGetRect(pagePtr,0, 0, width, height, textPtr, rI, i);
+                                rects[i] = new RectF(rI.left - 20, rI.top - 20, rI.right + 20, rI.bottom + 20);
+                                Log.d(TAG, " rect " + rects[i]);
+                                binding.ivShow.setRect(rects[i]);
+                            }
+                        }
+                    }
+                    return false;
+                });
+
             }
         } catch (Exception e) {
             e.printStackTrace();

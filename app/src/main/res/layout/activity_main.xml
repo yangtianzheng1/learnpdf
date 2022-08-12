@@ -5,6 +5,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
+    android:background="@color/white"
     tools:context=".MainActivity">
 
     <androidx.appcompat.widget.AppCompatButton
@@ -12,10 +13,10 @@
         android:layout_width="match_parent"
         android:layout_height="40dp"
         android:text="选择pdf文件"/>
-    <androidx.appcompat.widget.AppCompatImageView
+    <com.example.pdflibrary.widget.CustomImageView
         android:id="@+id/iv_show"
-        android:layout_width="match_parent"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:minHeight="300dp"/>
+        android:background="@color/teal_200"/>
 
 </androidx.appcompat.widget.LinearLayoutCompat>
