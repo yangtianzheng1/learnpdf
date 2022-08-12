@@ -3,14 +3,14 @@ plugins {
 }
 
 android {
-    compileSdk 29
+    compileSdk 31
     packagingOptions{
         pickFirst'lib/arm64-v8a/libpdfsdk.so'
     }
 
     defaultConfig {
         minSdk 23
-        targetSdk 29
+        targetSdk 30
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles "consumer-rules.pro"
