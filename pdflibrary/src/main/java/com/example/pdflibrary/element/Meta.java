@@ -1,4 +1,4 @@
-package com.example.pdflibrary;
+package com.example.pdflibrary.element;
 
 public class Meta {
     private String title;

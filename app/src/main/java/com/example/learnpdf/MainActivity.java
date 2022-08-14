@@ -8,66 +8,97 @@ import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.Resources;
-import android.database.Cursor;
 import android.graphics.Bitmap;
-import android.graphics.RectF;
+import android.graphics.Canvas;
 import android.net.Uri;
 import android.os.Bundle;
-
-import com.example.pdflibrary.Meta;
-import com.example.pdflibrary.PdfiumSDK;
-import com.example.pdflibrary.util.Size;
-import com.google.android.material.snackbar.Snackbar;
+import android.os.ParcelFileDescriptor;
+import android.text.TextUtils;
+import android.util.Log;
+import android.view.MotionEvent;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
-
-import android.os.ParcelFileDescriptor;
-import android.provider.OpenableColumns;
-import android.text.TextUtils;
-import android.util.Log;
-import android.view.View;
-
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
-import androidx.navigation.NavController;
-import androidx.navigation.Navigation;
-import androidx.navigation.ui.AppBarConfiguration;
-import androidx.navigation.ui.NavigationUI;
 
 import com.example.learnpdf.databinding.ActivityMainBinding;
-
-import android.view.Menu;
-import android.view.MenuItem;
-import android.widget.Toast;
+import com.example.pdflibrary.PdfDocument;
+import com.example.pdflibrary.PdfiumCore;
+import com.example.pdflibrary.element.Meta;
+import com.example.pdflibrary.listener.OnLoadCompleteListener;
+import com.example.pdflibrary.listener.OnPageChangeListener;
+import com.example.pdflibrary.listener.OnPageErrorListener;
+import com.example.pdflibrary.util.LogUtils;
+import com.example.pdflibrary.util.Size;
+import com.example.pdflibrary.view.DefaultScrollHandle;
+import com.example.pdflibrary.view.PDFView;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements OnPageChangeListener, OnLoadCompleteListener, OnPageErrorListener {
 
     private ActivityMainBinding binding;
-    private PdfiumSDK pdfiumSDK;
+    private PDFView pdfView;
 
-    private String TAG = "yang";
+    private String TAG = "MainActivity";
 
     private String filePath = "/storage/emulated/0/阿里巴巴Java开发手册终极版v1.3.0.pdf";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
-        pdfiumSDK = new PdfiumSDK();
-
         binding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
-
+        pdfView = binding.pdfView;
         binding.button1.setOnClickListener(view -> {
             pickFile();
         });
         requestPermission();
         loadFile(filePath);
+    }
+
+    private void loadFile(String path){
+        if (TextUtils.isEmpty(path)){
+            return;
+        }
+        filePath = path;
+        try {
+            File file = new File(filePath);
+            if (file.exists() && file.length() > 0){
+                pdfView.fromFile(file)
+                        .defaultPage(0)
+                        .onPageChange(this)
+                        .swipeHorizontal(false)
+                        .enableAnnotationRendering(true)
+                        .onLoad(this)
+                        .scrollHandle(new DefaultScrollHandle(this))
+                        .spacing(10) // in dp
+                        .onPageError(this)
+                        .fitEachPage(true)
+                        .load();
+
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    public void onPageChanged(int page, int pageCount) {
+        LogUtils.logD(TAG, " onPageChanged  page " + page + " pageCount " + pageCount);
+    }
+
+    @Override
+    public void loadComplete(int nbPages) {
+        LogUtils.logD(TAG, " loadComplete  nbPages " + nbPages);
+    }
+
+    @Override
+    public void onPageError(int page, Throwable t) {
+        LogUtils.logD(TAG, " onPageError  page " + page + " t " + t.getCause());
     }
 
     private void requestPermission() {
@@ -117,50 +148,8 @@ public class MainActivity extends AppCompatActivity {
         if (requestCode == 100) {
             Uri uri = data.getData();
             String filePath = uri.getPath();
-            Log.d(TAG, "filePath " + filePath);
+            LogUtils.logD(TAG, "filePath " + filePath);
             loadFile(filePath);
-        }
-    }
-
-    private void loadFile(String path){
-        if (TextUtils.isEmpty(path)){
-            return;
-        }
-        filePath = path;
-        try {
-            File file = new File(filePath);
-            if (file.exists() && file.length() > 0){
-                ParcelFileDescriptor fileDescriptor = null;
-                fileDescriptor = ParcelFileDescriptor.open(new File(filePath), MODE_READ_ONLY);
-                pdfiumSDK.newDocument(fileDescriptor);
-                Meta meta = pdfiumSDK.getDocumentMeta();
-                Log.d(TAG,  "meta" + meta.toString());
-
-                int page = 1;
-
-                pdfiumSDK.openPage(page);
-                Size size = pdfiumSDK.getPageSize(page);
-                Log.d(TAG, "Page size: " + size.toString());
-
-                int width = getScreenWidth();
-                int height = getScreenHeight();
-
-                Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-                pdfiumSDK.renderPageBitmap(bitmap, page, 0, 0, width, height, true);
-
-                int index = pdfiumSDK.getCharacterIndex(page, 100, 100, 10, 10);
-                String result = pdfiumSDK.extractCharacters(page, index, 20);
-                Log.d(TAG, "result " + result);
-                int areaCount = pdfiumSDK.countTextRect(page, index, 20);
-                RectF rectF = pdfiumSDK.getTextRect(page,areaCount);
-
-                binding.ivShow.setImageBitmap(bitmap);
-
-                Log.d(TAG, " width " + bitmap.getWidth() + " height " + bitmap.getHeight());
-                pdfiumSDK.closeDocument();
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
         }
     }
 
