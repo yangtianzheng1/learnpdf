@@ -73,8 +73,8 @@ public class PDFView extends RelativeLayout {
     public static final float DEFAULT_MIN_SCALE = 1.0f;
 
     private float minZoom = DEFAULT_MIN_SCALE;
-    private float midZoom = DEFAULT_MIN_SCALE;
-    private float maxZoom = DEFAULT_MIN_SCALE;
+    private float midZoom = DEFAULT_MID_SCALE;
+    private float maxZoom = DEFAULT_MAX_SCALE;
 
     /**
      * START - scrolling in first page direction
@@ -214,6 +214,8 @@ public class PDFView extends RelativeLayout {
     /** Holds last used Configurator that should be loaded when view has size */
     private Configurator waitingDocumentConfigurator;
 
+    public PDFViewForeground pdfViewForeground;
+
     /** Construct the initial view */
     public PDFView(Context context, AttributeSet set) {
         super(context, set);
@@ -224,9 +226,10 @@ public class PDFView extends RelativeLayout {
             return;
         }
 
+        pdfViewForeground = new PDFViewForeground();
         cacheManager = new CacheManager();
         animationManager = new AnimationManager(this);
-        dragPinchManager = new DragPinchManager(this, animationManager);
+        dragPinchManager = new DragPinchManager(this, animationManager, pdfViewForeground);
         pagesLoader = new PagesLoader(this);
 
         paint = new Paint();
@@ -618,6 +621,10 @@ public class PDFView extends RelativeLayout {
 
         // Restores the canvas position
         canvas.translate(-currentXOffset, -currentYOffset);
+        canvas.save();
+        canvas.translate(currentXOffset, currentYOffset);
+        pdfViewForeground.onDraw(canvas);
+
     }
 
     private void drawWithListener(Canvas canvas, int page, OnDrawListener listener) {
@@ -1005,6 +1012,7 @@ public class PDFView extends RelativeLayout {
      */
     public void zoomTo(float zoom) {
         this.zoom = zoom;
+        pdfViewForeground.zoom(zoom);
     }
 
     /**

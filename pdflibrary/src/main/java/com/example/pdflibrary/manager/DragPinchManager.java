@@ -15,10 +15,16 @@ import com.example.pdflibrary.PdfFile;
 import com.example.pdflibrary.element.Link;
 import com.example.pdflibrary.element.LinkTapEvent;
 import com.example.pdflibrary.scroll.ScrollHandle;
+import com.example.pdflibrary.util.LogUtils;
+import com.example.pdflibrary.util.ResultCoordinate;
 import com.example.pdflibrary.util.SizeF;
+import com.example.pdflibrary.util.ViewCanvasPageCoordinateUtil;
 import com.example.pdflibrary.view.PDFView;
+import com.example.pdflibrary.view.PDFViewForeground;
 
 public class DragPinchManager implements GestureDetector.OnGestureListener, GestureDetector.OnDoubleTapListener, ScaleGestureDetector.OnScaleGestureListener, View.OnTouchListener {
+
+    private String TAG = "DragPinchManager";
 
     private PDFView pdfView;
     private AnimationManager animationManager;
@@ -29,10 +35,16 @@ public class DragPinchManager implements GestureDetector.OnGestureListener, Gest
     private boolean scrolling = false;
     private boolean scaling = false;
     private boolean enabled = false;
+    private boolean isLongPress = false;
+    private float longPressStartX = 0;
+    private float longPressStartY = 0;
 
-    public DragPinchManager(PDFView pdfView, AnimationManager animationManager) {
+    private PDFViewForeground pdfViewForeground;
+
+    public DragPinchManager(PDFView pdfView, AnimationManager animationManager, PDFViewForeground pdfViewForeground) {
         this.pdfView = pdfView;
         this.animationManager = animationManager;
+        this.pdfViewForeground = pdfViewForeground;
         gestureDetector = new GestureDetector(pdfView.getContext(), this);
         scaleGestureDetector = new ScaleGestureDetector(pdfView.getContext(), this);
         pdfView.setOnTouchListener(this);
@@ -144,21 +156,24 @@ public class DragPinchManager implements GestureDetector.OnGestureListener, Gest
     @Override
     public boolean onDown(MotionEvent e) {
         animationManager.stopFling();
+        LogUtils.logD(TAG, " onDown  X " + e.getX() + " Y " + e.getY());
         return true;
     }
 
     @Override
     public void onShowPress(MotionEvent e) {
-
+        LogUtils.logD(TAG, " onShowPress  X " + e.getX() + " Y " + e.getY());
     }
 
     @Override
     public boolean onSingleTapUp(MotionEvent e) {
+        LogUtils.logD(TAG, " onSingleTapUp  X " + e.getX() + " Y " + e.getY());
         return false;
     }
 
     @Override
     public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX, float distanceY) {
+        LogUtils.logD(TAG, " onScroll  X " + e1.getX() + " Y " + e1.getY() + "  X  " + e2.getX() + " Y " + e2.getY());
         scrolling = true;
         if (pdfView.isZooming() || pdfView.isSwipeEnabled()) {
             pdfView.moveRelativeTo(-distanceX, -distanceY);
@@ -179,11 +194,16 @@ public class DragPinchManager implements GestureDetector.OnGestureListener, Gest
 
     @Override
     public void onLongPress(MotionEvent e) {
+        LogUtils.logD(TAG, " onLongPress  X " + e.getX() + " Y " + e.getY());
+        longPressStartX = e.getX();
+        longPressStartY = e.getY();
+        isLongPress = true;
         pdfView.callbacks.callOnLongPress(e);
     }
 
     @Override
     public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
+        LogUtils.logD(TAG, " onFling  X " + e1.getX() + " Y " + e1.getY() + "  X  " + e2.getX() + " Y " + e2.getY());
         if (!pdfView.isSwipeEnabled()) {
             return false;
         }
@@ -271,6 +291,24 @@ public class DragPinchManager implements GestureDetector.OnGestureListener, Gest
     public boolean onTouch(View v, MotionEvent event) {
         if (!enabled) {
             return false;
+        }
+        if (isLongPress){
+            if (event.getAction() == MotionEvent.ACTION_UP || event.getAction() == MotionEvent.ACTION_CANCEL){
+                isLongPress = false;
+                longPressStartX = 0;
+                longPressStartY = 0;
+                LogUtils.logD(TAG, " action " + event.getAction());
+            }else if (event.getAction() == MotionEvent.ACTION_MOVE){
+                LogUtils.logD(TAG, " ACTION_MOVE  X " + event.getX() + " Y " + event.getY());
+                ResultCoordinate startCoordinate = ViewCanvasPageCoordinateUtil.viewCoordinateToCanvas(longPressStartX,
+                        longPressStartY, pdfView.getCurrentXOffset(), pdfView.getCurrentYOffset());
+                ResultCoordinate coordinate = ViewCanvasPageCoordinateUtil.viewCoordinateToCanvas(event.getX(),
+                        event.getY(), pdfView.getCurrentXOffset(), pdfView.getCurrentYOffset());
+                int pageIndexByCanvasXY = ViewCanvasPageCoordinateUtil.getPageIndexByCanvasXY(coordinate.x.longValue(), coordinate.y.longValue(), pdfView.getZoom(), pdfView.isSwipeVertical(), pdfView.pdfFile);
+                LogUtils.logD(TAG, "  pageIndexByCanvasXY  " + pageIndexByCanvasXY);
+                pdfViewForeground.drawRect(startCoordinate.x, startCoordinate.y, coordinate.x, coordinate.y);
+                pdfView.postInvalidate();
+            }
         }
 
         boolean retVal = scaleGestureDetector.onTouchEvent(event);
