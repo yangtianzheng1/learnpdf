@@ -621,9 +621,9 @@ public class PDFView extends RelativeLayout {
 
         // Restores the canvas position
         canvas.translate(-currentXOffset, -currentYOffset);
-        canvas.save();
-        canvas.translate(currentXOffset, currentYOffset);
-        pdfViewForeground.onDraw(canvas);
+//        canvas.save();
+//        canvas.translate(currentXOffset, currentYOffset);
+//        pdfViewForeground.onDraw(canvas);
 
     }
 
@@ -676,6 +676,8 @@ public class PDFView extends RelativeLayout {
             localTranslationY = toCurrentScale(maxHeight - size.getHeight()) / 2;
         }
         canvas.translate(localTranslationX, localTranslationY);
+
+        LogUtils.logD(TAG, " localTranslationX " + localTranslationX + " localTranslationY " + localTranslationY);
 
         Rect srcRect = new Rect(0, 0, renderedBitmap.getWidth(),
                 renderedBitmap.getHeight());
@@ -1356,7 +1358,7 @@ public class PDFView extends RelativeLayout {
 
         private Constants.FitPolicy pageFitPolicy = Constants.FitPolicy.WIDTH;
 
-        private boolean fitEachPage = true;
+        private boolean fitEachPage = false;
 
         private boolean pageFling = false;
 

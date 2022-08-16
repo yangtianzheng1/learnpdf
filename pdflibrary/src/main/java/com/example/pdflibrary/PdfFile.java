@@ -370,4 +370,25 @@ public class PdfFile {
 
         return documentPage;
     }
+
+    public long getPageTextId(int page){
+        int docPage = documentPage(page);
+        return pdfiumCore.prepareTextInfo(pdfDocument, docPage);
+    }
+
+    public String getTextFromTextPtr(long textPtr){
+        return pdfiumCore.getTextFromTextPtr(textPtr);
+    }
+
+    public int getCharIndexAtCoord(int page, double width, double height, long textPtr, double posX,
+                                   double posY, double tolX, double tolY){
+
+        return pdfiumCore.nativeGetCharIndexAtCoord(pdfDocument.mNativePagesPtr.get(Integer.valueOf(page)), width, height,
+                textPtr, posX, posY, tolX, tolY);
+    }
+
+    public int getTextRects(int page, int offsetY, int offsetX, Size size, ArrayList<RectF> arr, long textPtr, int selSt, int selEd) {
+        return pdfiumCore.nativeCountAndGetRects(pdfDocument.mNativePagesPtr.get(Integer.valueOf(page)), offsetY, offsetX, size.getWidth(), size.getHeight(), arr, textPtr, selSt, selEd);
+    }
+
 }

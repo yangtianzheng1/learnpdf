@@ -22,6 +22,8 @@ import com.example.pdflibrary.util.ViewCanvasPageCoordinateUtil;
 import com.example.pdflibrary.view.PDFView;
 import com.example.pdflibrary.view.PDFViewForeground;
 
+import java.util.ArrayList;
+
 public class DragPinchManager implements GestureDetector.OnGestureListener, GestureDetector.OnDoubleTapListener, ScaleGestureDetector.OnScaleGestureListener, View.OnTouchListener {
 
     private String TAG = "DragPinchManager";
@@ -168,7 +170,45 @@ public class DragPinchManager implements GestureDetector.OnGestureListener, Gest
     @Override
     public boolean onSingleTapUp(MotionEvent e) {
         LogUtils.logD(TAG, " onSingleTapUp  X " + e.getX() + " Y " + e.getY());
+//        String tapText = getTextByActionTap(e);
+//        LogUtils.logD(TAG, " tapText " + tapText);
         return false;
+    }
+
+    private String getTextByActionTap(MotionEvent e){
+        ResultCoordinate resultCoordinate = ViewCanvasPageCoordinateUtil.viewCoordinateToCanvas(e.getX(), e.getY(),
+                pdfView.getCurrentXOffset(), pdfView.getCurrentYOffset());
+        int page = ViewCanvasPageCoordinateUtil.getPageIndexByCanvasXY(resultCoordinate.x.longValue(), resultCoordinate.y.longValue(), pdfView.getZoom(),
+                pdfView.isSwipeVertical(), pdfView.pdfFile);
+        SizeF pageSize = pdfView.pdfFile.getScaledPageSize(page, pdfView.getZoom());
+        LogUtils.logD(TAG, " pageSize " + pageSize);
+        float offsetY = pdfView.pdfFile.getPageOffset(page, pdfView.getZoom());
+        float offsetX = pdfView.pdfFile.getSecondaryPageOffset(page, pdfView.getZoom());
+        double dx = resultCoordinate.x - offsetX;
+        double dy = resultCoordinate.y - offsetY;
+        long textId = pdfView.pdfFile.getPageTextId(page);
+        String pageText = pdfView.pdfFile.getTextFromTextPtr(textId);
+        int charIdx = pdfView.pdfFile.getCharIndexAtCoord(page, pageSize.getWidth(), pageSize.getHeight(), textId, dx, dy, 10, 10 );
+        String result = "";
+        if (charIdx >= 0 && charIdx < pageText.length()){
+            result = pageText.substring(charIdx, charIdx + 1);
+            LogUtils.logD(TAG, " tapText " + result);
+            ArrayList<RectF> rectFS = new ArrayList<>();
+            pdfView.pdfFile.getTextRects(page, 0, 0, pageSize.toSize(), rectFS, textId, charIdx, 15);
+            for (int i = 0; i < rectFS.size(); i++){
+                LogUtils.logD(TAG, " rect " + rectFS.get(i).toString());
+                RectF rectF = rectFS.get(i);
+                ResultCoordinate temp = new ResultCoordinate();
+                ResultCoordinate temp1 = new ResultCoordinate();
+                temp.x = Double.valueOf(rectF.left + offsetX);
+                temp.y = Double.valueOf(rectF.top + offsetY);
+                temp1.x = Double.valueOf(rectF.right + offsetX);
+                temp1.y = Double.valueOf(rectF.bottom + offsetY);
+                pdfViewForeground.drawRect(temp.x, temp.y, temp1.x, temp1.y);
+            }
+            pdfView.postInvalidate();
+        }
+        return result;
     }
 
     @Override
@@ -197,7 +237,7 @@ public class DragPinchManager implements GestureDetector.OnGestureListener, Gest
         LogUtils.logD(TAG, " onLongPress  X " + e.getX() + " Y " + e.getY());
         longPressStartX = e.getX();
         longPressStartY = e.getY();
-        isLongPress = true;
+        isLongPress = false;
         pdfView.callbacks.callOnLongPress(e);
     }
 

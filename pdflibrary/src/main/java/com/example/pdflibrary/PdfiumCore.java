@@ -104,6 +104,9 @@ public class PdfiumCore {
      * @return A handle to the text page information structure. NULL if something goes wrong.
      */
     public long prepareTextInfo(PdfDocument doc, int pageIndex) {
+        if (hasTextPage(doc, pageIndex)){
+            return doc.mNativeTextPagesPtr.get(pageIndex);
+        }
         long textPagePtr;
         textPagePtr = nativeLoadTextPage(doc.mNativeDocPtr, pageIndex);
         if (validPtr(textPagePtr)) {
@@ -684,6 +687,10 @@ public class PdfiumCore {
 
     }
 
+    public String getTextFromTextPtr(long textPtr){
+        return nativeGetText(textPtr);
+    }
+
     public int getCurrentDpi() {
         return mCurrentDpi;
     }
@@ -808,6 +815,12 @@ public class PdfiumCore {
     private native int nativeCountSearchResult(long searchHandlePtr);
 
     private native long nativeAddTextAnnotation(long docPtr, int pageIndex, String text, int[] color, int[] bound);
+
+    private native String nativeGetText(long textPtr);
+
+    public native int nativeGetCharIndexAtCoord(long pagePtr, double width, double height, long textPtr, double posX, double posY, double tolX, double tolY);
+
+    public native int nativeCountAndGetRects(long pagePtr, int offsetY, int offsetX, int width, int height, ArrayList<RectF> arr, long tid, int selSt, int selEd);
 
     ///////////////////////////////////////
     // PDF Native Callbacks
