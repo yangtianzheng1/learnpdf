@@ -44,7 +44,7 @@ public class PdfiumCore {
 
     private static Field mFdField = null;
 
-    private int mCurrentDpi;
+    private final int mCurrentDpi;
 
     public static int getNumFd(ParcelFileDescriptor fdObj) {
         try {
@@ -60,8 +60,8 @@ public class PdfiumCore {
     }
 
     public PdfiumCore(Context ctx) {
-        this.mCurrentDpi = (ctx.getResources().getDisplayMetrics()).densityDpi;
-//        mCurrentDpi = 72;
+//        this.mCurrentDpi = (ctx.getResources().getDisplayMetrics()).densityDpi;
+        mCurrentDpi = 72;
         LogUtils.logD(TAG, " mCurrentDpi " + mCurrentDpi);
     }
 
@@ -696,7 +696,7 @@ public class PdfiumCore {
     }
 
     public void setCurrentDpi(int d) {
-        mCurrentDpi = d;
+//        mCurrentDpi = d;
     }
 
     public boolean hasPage(PdfDocument doc, int index) {

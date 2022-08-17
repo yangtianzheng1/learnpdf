@@ -4,7 +4,6 @@ import static com.example.pdflibrary.Constants.Cache.CACHE_SIZE;
 import static com.example.pdflibrary.Constants.PRELOAD_OFFSET;
 
 import android.graphics.RectF;
-import android.util.Log;
 
 import com.example.pdflibrary.Constants;
 import com.example.pdflibrary.util.DPTOPXUtil;
@@ -83,7 +82,7 @@ public class PagesLoader {
 
     public PagesLoader(PDFView pdfView) {
         this.pdfView = pdfView;
-        this.preloadOffset = DPTOPXUtil.getDP(pdfView.getContext(), PRELOAD_OFFSET);
+        this.preloadOffset = DPTOPXUtil.getPX(pdfView.getContext(), PRELOAD_OFFSET);
     }
 
     private void getPageColsRows(GridSize grid, int pageIndex) {

@@ -5,6 +5,7 @@ import static com.example.pdflibrary.Constants.Pinch.MINIMUM_ZOOM;
 
 import android.graphics.PointF;
 import android.graphics.RectF;
+import android.text.TextUtils;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.ScaleGestureDetector;
@@ -12,6 +13,8 @@ import android.view.View;
 
 import com.example.pdflibrary.Constants;
 import com.example.pdflibrary.PdfFile;
+import com.example.pdflibrary.edit.PdfEditMode;
+import com.example.pdflibrary.edit.SelectText;
 import com.example.pdflibrary.element.Link;
 import com.example.pdflibrary.element.LinkTapEvent;
 import com.example.pdflibrary.scroll.ScrollHandle;
@@ -23,6 +26,7 @@ import com.example.pdflibrary.view.PDFView;
 import com.example.pdflibrary.view.PDFViewForeground;
 
 import java.util.ArrayList;
+import java.util.List;
 
 public class DragPinchManager implements GestureDetector.OnGestureListener, GestureDetector.OnDoubleTapListener, ScaleGestureDetector.OnScaleGestureListener, View.OnTouchListener {
 
@@ -37,9 +41,16 @@ public class DragPinchManager implements GestureDetector.OnGestureListener, Gest
     private boolean scrolling = false;
     private boolean scaling = false;
     private boolean enabled = false;
-    private boolean isLongPress = false;
-    private float longPressStartX = 0;
-    private float longPressStartY = 0;
+
+    private float editStartX = 0;
+    private float editStartY = 0;
+
+    private boolean isTextEditMode = false;
+    private boolean isGraphEditMode = false;
+    private boolean isEraserMode = false;
+
+    private SelectText selectTextStart;
+    private SelectText selectTextEnd;
 
     private PDFViewForeground pdfViewForeground;
 
@@ -60,15 +71,15 @@ public class DragPinchManager implements GestureDetector.OnGestureListener, Gest
         enabled = false;
     }
 
-    public  void disableLongpress(){
+    public void disableLongpress() {
         gestureDetector.setIsLongpressEnabled(false);
     }
 
     @Override
     public boolean onSingleTapConfirmed(MotionEvent e) {
         boolean onTapHandled = pdfView.callbacks.callOnTap(e);
-        boolean linkTapped = checkLinkTapped(e.getX(), e.getY());
-        if (!onTapHandled && !linkTapped) {
+//        boolean linkTapped = checkLinkTapped(e.getX(), e.getY());
+        if (!onTapHandled) {
             ScrollHandle ps = pdfView.getScrollHandle();
             if (ps != null && !pdfView.documentFitsView()) {
                 if (!ps.shown()) {
@@ -159,62 +170,64 @@ public class DragPinchManager implements GestureDetector.OnGestureListener, Gest
     public boolean onDown(MotionEvent e) {
         animationManager.stopFling();
         LogUtils.logD(TAG, " onDown  X " + e.getX() + " Y " + e.getY());
+        isTextEditMode = false;
+        isGraphEditMode = false;
+        isEraserMode = false;
+        if (pdfView.getCurrentMode() == PdfEditMode.TEXT) {
+            isTextEditMode = true;
+            selectTextStart = getTextByActionTap(e.getX(), e.getY());
+            pdfViewForeground.clear();
+        } else if (pdfView.getCurrentMode() == PdfEditMode.GRAPH) {
+            isGraphEditMode = true;
+        } else if (pdfView.getCurrentMode() == PdfEditMode.ERASER) {
+            isEraserMode = true;
+        }
+        editStartX = e.getX();
+        editStartY = e.getY();
         return true;
     }
 
     @Override
     public void onShowPress(MotionEvent e) {
-        LogUtils.logD(TAG, " onShowPress  X " + e.getX() + " Y " + e.getY());
     }
 
     @Override
     public boolean onSingleTapUp(MotionEvent e) {
-        LogUtils.logD(TAG, " onSingleTapUp  X " + e.getX() + " Y " + e.getY());
-//        String tapText = getTextByActionTap(e);
-//        LogUtils.logD(TAG, " tapText " + tapText);
         return false;
     }
 
-    private String getTextByActionTap(MotionEvent e){
-        ResultCoordinate resultCoordinate = ViewCanvasPageCoordinateUtil.viewCoordinateToCanvas(e.getX(), e.getY(),
+    private SelectText getTextByActionTap(float x, float y) {
+        SelectText selectText = new SelectText();
+        ResultCoordinate resultCoordinate = ViewCanvasPageCoordinateUtil.viewCoordinateToCanvas(x, y,
                 pdfView.getCurrentXOffset(), pdfView.getCurrentYOffset());
+        selectText.canvasX = resultCoordinate.x;
+        selectText.canvasY = resultCoordinate.y;
+
         int page = ViewCanvasPageCoordinateUtil.getPageIndexByCanvasXY(resultCoordinate.x.longValue(), resultCoordinate.y.longValue(), pdfView.getZoom(),
                 pdfView.isSwipeVertical(), pdfView.pdfFile);
+        selectText.page = page;
         SizeF pageSize = pdfView.pdfFile.getScaledPageSize(page, pdfView.getZoom());
         LogUtils.logD(TAG, " pageSize " + pageSize);
         float offsetY = pdfView.pdfFile.getPageOffset(page, pdfView.getZoom());
         float offsetX = pdfView.pdfFile.getSecondaryPageOffset(page, pdfView.getZoom());
+        selectText.pageMainOffset = offsetY;
+        selectText.pageSecondaryOffset = offsetX;
         double dx = resultCoordinate.x - offsetX;
         double dy = resultCoordinate.y - offsetY;
         long textId = pdfView.pdfFile.getPageTextId(page);
-        String pageText = pdfView.pdfFile.getTextFromTextPtr(textId);
-        int charIdx = pdfView.pdfFile.getCharIndexAtCoord(page, pageSize.getWidth(), pageSize.getHeight(), textId, dx, dy, 10, 10 );
-        String result = "";
-        if (charIdx >= 0 && charIdx < pageText.length()){
-            result = pageText.substring(charIdx, charIdx + 1);
-            LogUtils.logD(TAG, " tapText " + result);
-            ArrayList<RectF> rectFS = new ArrayList<>();
-            pdfView.pdfFile.getTextRects(page, 0, 0, pageSize.toSize(), rectFS, textId, charIdx, 15);
-            for (int i = 0; i < rectFS.size(); i++){
-                LogUtils.logD(TAG, " rect " + rectFS.get(i).toString());
-                RectF rectF = rectFS.get(i);
-                ResultCoordinate temp = new ResultCoordinate();
-                ResultCoordinate temp1 = new ResultCoordinate();
-                temp.x = Double.valueOf(rectF.left + offsetX);
-                temp.y = Double.valueOf(rectF.top + offsetY);
-                temp1.x = Double.valueOf(rectF.right + offsetX);
-                temp1.y = Double.valueOf(rectF.bottom + offsetY);
-                pdfViewForeground.drawRect(temp.x, temp.y, temp1.x, temp1.y);
-            }
-            pdfView.postInvalidate();
-        }
-        return result;
+        selectText.textPtr = textId;
+        selectText.pageText = pdfView.pdfFile.getTextFromTextPtr(textId);
+        selectText.charIdx = pdfView.pdfFile.getCharIndexAtCoord(page, pageSize.getWidth(), pageSize.getHeight(), textId, dx, dy, 10, 10);
+        return selectText;
     }
 
     @Override
     public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX, float distanceY) {
         LogUtils.logD(TAG, " onScroll  X " + e1.getX() + " Y " + e1.getY() + "  X  " + e2.getX() + " Y " + e2.getY());
         scrolling = true;
+        if (isTextEditMode) {
+            return true;
+        }
         if (pdfView.isZooming() || pdfView.isSwipeEnabled()) {
             pdfView.moveRelativeTo(-distanceX, -distanceY);
         }
@@ -234,10 +247,6 @@ public class DragPinchManager implements GestureDetector.OnGestureListener, Gest
 
     @Override
     public void onLongPress(MotionEvent e) {
-        LogUtils.logD(TAG, " onLongPress  X " + e.getX() + " Y " + e.getY());
-        longPressStartX = e.getX();
-        longPressStartY = e.getY();
-        isLongPress = false;
         pdfView.callbacks.callOnLongPress(e);
     }
 
@@ -332,35 +341,112 @@ public class DragPinchManager implements GestureDetector.OnGestureListener, Gest
         if (!enabled) {
             return false;
         }
-        if (isLongPress){
-            if (event.getAction() == MotionEvent.ACTION_UP || event.getAction() == MotionEvent.ACTION_CANCEL){
-                isLongPress = false;
-                longPressStartX = 0;
-                longPressStartY = 0;
-                LogUtils.logD(TAG, " action " + event.getAction());
-            }else if (event.getAction() == MotionEvent.ACTION_MOVE){
-                LogUtils.logD(TAG, " ACTION_MOVE  X " + event.getX() + " Y " + event.getY());
-                ResultCoordinate startCoordinate = ViewCanvasPageCoordinateUtil.viewCoordinateToCanvas(longPressStartX,
-                        longPressStartY, pdfView.getCurrentXOffset(), pdfView.getCurrentYOffset());
-                ResultCoordinate coordinate = ViewCanvasPageCoordinateUtil.viewCoordinateToCanvas(event.getX(),
-                        event.getY(), pdfView.getCurrentXOffset(), pdfView.getCurrentYOffset());
-                int pageIndexByCanvasXY = ViewCanvasPageCoordinateUtil.getPageIndexByCanvasXY(coordinate.x.longValue(), coordinate.y.longValue(), pdfView.getZoom(), pdfView.isSwipeVertical(), pdfView.pdfFile);
-                LogUtils.logD(TAG, "  pageIndexByCanvasXY  " + pageIndexByCanvasXY);
-                pdfViewForeground.drawRect(startCoordinate.x, startCoordinate.y, coordinate.x, coordinate.y);
-                pdfView.postInvalidate();
+        boolean actionMove = event.getAction() == MotionEvent.ACTION_MOVE;
+        boolean actionUp = event.getAction() == MotionEvent.ACTION_UP;
+        if (actionMove || actionUp) {
+            if (isTextEditMode) {
+                textEdit(event.getX(), event.getY(), actionUp);
+            } else if (isGraphEditMode) {
+                graphEdit(event.getX(), event.getY());
+            } else if (isEraserMode) {
+                eraser(event.getX(), event.getY());
             }
         }
 
         boolean retVal = scaleGestureDetector.onTouchEvent(event);
         retVal = gestureDetector.onTouchEvent(event) || retVal;
 
-        if (event.getAction() == MotionEvent.ACTION_UP) {
+        if (actionUp) {
             if (scrolling) {
                 scrolling = false;
                 onScrollEnd(event);
             }
         }
         return retVal;
+    }
+
+    private int step = 0;
+
+    private void textEdit(float x, float y, boolean isEnd) {
+        step++;
+        if (step == 5 || isEnd){
+            step = 0;
+        }else {
+            return;
+        }
+        selectTextEnd = getTextByActionTap(x, y);
+        if (selectTextEnd.page != -1 && selectTextEnd.page == selectTextStart.page) {
+            if (selectTextStart.pageText != null && selectTextStart.charIdx >= 0 && selectTextStart.charIdx < selectTextStart.pageText.length()
+                    && selectTextEnd.charIdx >= 0 && selectTextEnd.charIdx < selectTextStart.pageText.length()) {
+                int startCharIdx = selectTextStart.charIdx;
+                int endCharIdx = selectTextEnd.charIdx;
+                if (startCharIdx == endCharIdx) {
+                    return;
+                }
+                if (startCharIdx > endCharIdx) {
+                    int temp = startCharIdx;
+                    startCharIdx = endCharIdx;
+                    endCharIdx = temp;
+                }
+                String result = selectTextStart.pageText.substring(startCharIdx, endCharIdx);
+                LogUtils.logD(TAG, " result " + result, true);
+                ArrayList<RectF> rectFS = new ArrayList<>();
+                SizeF pageSize = pdfView.pdfFile.getScaledPageSize(selectTextStart.page, pdfView.getZoom());
+                pdfView.pdfFile.getTextRects(selectTextStart.page, 0, 0, pageSize.toSize(), rectFS, selectTextStart.textPtr, startCharIdx, endCharIdx - startCharIdx);
+                if (rectFS.size() > 0) {
+                    float pageMainOffset = selectTextStart.pageMainOffset;
+                    float pageSecondaryOffset = selectTextStart.pageSecondaryOffset;
+                    for (RectF rectF : rectFS) {
+                        rectF.offset(pageSecondaryOffset, pageMainOffset);
+                        LogUtils.logD(TAG, " rectF " + rectF, true);
+                        pdfViewForeground.drawRect(rectF);
+                    }
+                    pdfView.postInvalidate();
+                }
+            }
+        }
+    }
+
+//    public ArrayList<RectF> mergeLineRects(List<RectF> selRects, RectF box) {
+//        RectF tmp = new RectF();
+//        ArrayList<RectF> selLineRects = new ArrayList<>(selRects.size());
+//        RectF currentLineRect=null;
+//        for(RectF rI:selRects) {
+//            //CMN.Log("RectF rI:selRects", rI);
+//            if(currentLineRect!=null&&Math.abs((currentLineRect.top+currentLineRect.bottom)-(rI.top+rI.bottom))<currentLineRect.bottom-currentLineRect.top) {
+//                currentLineRect.left = Math.min(currentLineRect.left, rI.left);
+//                currentLineRect.right = Math.max(currentLineRect.right, rI.right);
+//                currentLineRect.top = Math.min(currentLineRect.top, rI.top);
+//                currentLineRect.bottom = Math.max(currentLineRect.bottom, rI.bottom);
+//            } else {
+//                currentLineRect=new RectF();
+//                currentLineRect.set(rI);
+//                selLineRects.add(currentLineRect);
+//                int cid = getCharIdxAtPos(rI.left + 1, rI.top + rI.height() / 2);
+//                if(cid>0) {
+//                    getCharLoosePos(tmp, cid);
+//                    currentLineRect.left = Math.min(currentLineRect.left, tmp.left);
+//                    currentLineRect.right = Math.max(currentLineRect.right, tmp.right);
+//                    currentLineRect.top = Math.min(currentLineRect.top, tmp.top);
+//                    currentLineRect.bottom = Math.max(currentLineRect.bottom, tmp.bottom);
+//                }
+//            }
+//            if(box!=null) {
+//                box.left = Math.min(box.left, currentLineRect.left);
+//                box.right = Math.max(box.right, currentLineRect.right);
+//                box.top = Math.min(box.top, currentLineRect.top);
+//                box.bottom = Math.max(box.bottom, currentLineRect.bottom);
+//            }
+//        }
+//        return selLineRects;
+//    }
+
+    private void graphEdit(float x, float y) {
+
+    }
+
+    private void eraser(float x, float y) {
+
     }
 
     private void hideHandle() {

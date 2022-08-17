@@ -6,6 +6,7 @@ import com.example.pdflibrary.PdfDocument;
 import com.example.pdflibrary.PdfFile;
 import com.example.pdflibrary.PdfiumCore;
 import com.example.pdflibrary.source.DocumentSource;
+import com.example.pdflibrary.util.DPTOPXUtil;
 import com.example.pdflibrary.util.Size;
 import com.example.pdflibrary.view.PDFView;
 
@@ -52,6 +53,7 @@ public class DecodingAsyncTask extends AsyncTask<Void, Void, Throwable> {
 
     private Size getViewSize(PDFView pdfView) {
         return new Size(pdfView.getWidth(), pdfView.getHeight());
+//        return new Size(pdfView.getWidth() - 2 * DPTOPXUtil.getPX(pdfView.getContext(), 260), pdfView.getHeight());
     }
 
     @Override

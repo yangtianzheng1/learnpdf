@@ -4,7 +4,7 @@ import android.util.Log;
 
 public class LogUtils {
 
-    private static final boolean OPEN_LOG = true;
+    private static final boolean OPEN_LOG = false;
 
     private LogUtils(){
         throw new RuntimeException("not init LogUtils");
@@ -25,6 +25,12 @@ public class LogUtils {
     public static void logE(String tag, String content){
         if (OPEN_LOG){
             Log.e(tag, content);
+        }
+    }
+
+    public static void logD(String tag, String content, boolean needOpen){
+        if (OPEN_LOG || needOpen){
+            Log.d(tag, content);
         }
     }
 }

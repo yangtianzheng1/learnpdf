@@ -6,8 +6,8 @@ public class ViewCanvasPageCoordinateUtil {
 
     public static ResultCoordinate viewCoordinateToCanvas(float viewX, float viewY, float canvasXOffset, float canvasYOffset){
         ResultCoordinate resultCoordinate = new ResultCoordinate();
-        resultCoordinate.x = (double) (viewX - canvasXOffset);
-        resultCoordinate.y = (double) (viewY - canvasYOffset);
+        resultCoordinate.x = viewX - canvasXOffset;
+        resultCoordinate.y = viewY - canvasYOffset;
         return resultCoordinate;
     }
 

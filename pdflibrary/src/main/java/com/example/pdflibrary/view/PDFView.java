@@ -23,6 +23,8 @@ import android.widget.RelativeLayout;
 import com.example.pdflibrary.Constants;
 import com.example.pdflibrary.PdfFile;
 import com.example.pdflibrary.PdfiumCore;
+import com.example.pdflibrary.edit.PdfEditColor;
+import com.example.pdflibrary.edit.PdfEditMode;
 import com.example.pdflibrary.element.Bookmark;
 import com.example.pdflibrary.element.Link;
 import com.example.pdflibrary.element.Meta;
@@ -73,8 +75,8 @@ public class PDFView extends RelativeLayout {
     public static final float DEFAULT_MIN_SCALE = 1.0f;
 
     private float minZoom = DEFAULT_MIN_SCALE;
-    private float midZoom = DEFAULT_MID_SCALE;
-    private float maxZoom = DEFAULT_MAX_SCALE;
+    private float midZoom = DEFAULT_MIN_SCALE;
+    private float maxZoom = DEFAULT_MIN_SCALE;
 
     /**
      * START - scrolling in first page direction
@@ -226,7 +228,7 @@ public class PDFView extends RelativeLayout {
             return;
         }
 
-        pdfViewForeground = new PDFViewForeground();
+        pdfViewForeground = new PDFViewForeground(this);
         cacheManager = new CacheManager();
         animationManager = new AnimationManager(this);
         dragPinchManager = new DragPinchManager(this, animationManager, pdfViewForeground);
@@ -454,6 +456,9 @@ public class PDFView extends RelativeLayout {
 
     @Override
     protected void onSizeChanged(int w, int h, int oldw, int oldh) {
+        if (w > h ){
+            w = w - 2 * DPTOPXUtil.getPX(getContext(), 260);
+        }
         hasSize = true;
         if (waitingDocumentConfigurator != null) {
             waitingDocumentConfigurator.load();
@@ -619,11 +624,11 @@ public class PDFView extends RelativeLayout {
 
         drawWithListener(canvas, currentPage, callbacks.getOnDraw());
 
+        pdfViewForeground.onDraw(canvas);
+
         // Restores the canvas position
         canvas.translate(-currentXOffset, -currentYOffset);
-//        canvas.save();
-//        canvas.translate(currentXOffset, currentYOffset);
-//        pdfViewForeground.onDraw(canvas);
+
 
     }
 
@@ -1217,7 +1222,7 @@ public class PDFView extends RelativeLayout {
     }
 
     private void setSpacing(int spacingDp) {
-        this.spacingPx = DPTOPXUtil.getDP(getContext(), spacingDp);
+        this.spacingPx = DPTOPXUtil.getPX(getContext(), spacingDp);
     }
 
     private void setAutoSpacing(boolean autoSpacing) {
@@ -1307,6 +1312,28 @@ public class PDFView extends RelativeLayout {
     }
 
     private enum State {DEFAULT, LOADED, SHOWN, ERROR}
+
+    private PdfEditMode currentMode = PdfEditMode.TEXT;
+    private int editColor = PdfEditColor.BLUE.getColor();
+
+    // pdf 编辑模式
+    public void  editModeChange(PdfEditMode mode){
+        currentMode = mode;
+    }
+
+    // pdf 编辑模式加更改颜色
+    public void  colorChange(PdfEditColor color, PdfEditMode mode){
+        editColor = color.getColor();
+        currentMode = mode;
+    }
+
+    public PdfEditMode getCurrentMode(){
+        return currentMode;
+    }
+
+    public int getEditColor(){
+        return editColor;
+    }
 
     public class Configurator {
 
