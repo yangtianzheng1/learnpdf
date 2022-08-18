@@ -35,7 +35,7 @@ public class PDFViewForeground {
         rectFS.add(rectF);
     }
 
-    public void drawRect(RectF rectF){
+    public synchronized void drawRect(RectF rectF){
         rectFS.add(rectF);
     }
 

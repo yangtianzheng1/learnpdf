@@ -13,6 +13,7 @@ import android.view.View;
 
 import com.example.pdflibrary.Constants;
 import com.example.pdflibrary.PdfFile;
+import com.example.pdflibrary.edit.EditHandler;
 import com.example.pdflibrary.edit.PdfEditMode;
 import com.example.pdflibrary.edit.SelectText;
 import com.example.pdflibrary.element.Link;
@@ -26,6 +27,7 @@ import com.example.pdflibrary.view.PDFView;
 import com.example.pdflibrary.view.PDFViewForeground;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class DragPinchManager implements GestureDetector.OnGestureListener, GestureDetector.OnDoubleTapListener, ScaleGestureDetector.OnScaleGestureListener, View.OnTouchListener {
@@ -53,6 +55,7 @@ public class DragPinchManager implements GestureDetector.OnGestureListener, Gest
     private SelectText selectTextEnd;
 
     private PDFViewForeground pdfViewForeground;
+    private EditHandler editHandler;
 
     public DragPinchManager(PDFView pdfView, AnimationManager animationManager, PDFViewForeground pdfViewForeground) {
         this.pdfView = pdfView;
@@ -342,7 +345,7 @@ public class DragPinchManager implements GestureDetector.OnGestureListener, Gest
             return false;
         }
         boolean actionMove = event.getAction() == MotionEvent.ACTION_MOVE;
-        boolean actionUp = event.getAction() == MotionEvent.ACTION_UP;
+        boolean actionUp = event.getAction() == MotionEvent.ACTION_UP || event.getAction() == MotionEvent.ACTION_CANCEL;
         if (actionMove || actionUp) {
             if (isTextEditMode) {
                 textEdit(event.getX(), event.getY(), actionUp);
@@ -369,77 +372,16 @@ public class DragPinchManager implements GestureDetector.OnGestureListener, Gest
 
     private void textEdit(float x, float y, boolean isEnd) {
         step++;
-        if (step == 5 || isEnd){
+        if (step == 2 || isEnd){
             step = 0;
         }else {
             return;
         }
         selectTextEnd = getTextByActionTap(x, y);
-        if (selectTextEnd.page != -1 && selectTextEnd.page == selectTextStart.page) {
-            if (selectTextStart.pageText != null && selectTextStart.charIdx >= 0 && selectTextStart.charIdx < selectTextStart.pageText.length()
-                    && selectTextEnd.charIdx >= 0 && selectTextEnd.charIdx < selectTextStart.pageText.length()) {
-                int startCharIdx = selectTextStart.charIdx;
-                int endCharIdx = selectTextEnd.charIdx;
-                if (startCharIdx == endCharIdx) {
-                    return;
-                }
-                if (startCharIdx > endCharIdx) {
-                    int temp = startCharIdx;
-                    startCharIdx = endCharIdx;
-                    endCharIdx = temp;
-                }
-                String result = selectTextStart.pageText.substring(startCharIdx, endCharIdx);
-                LogUtils.logD(TAG, " result " + result, true);
-                ArrayList<RectF> rectFS = new ArrayList<>();
-                SizeF pageSize = pdfView.pdfFile.getScaledPageSize(selectTextStart.page, pdfView.getZoom());
-                pdfView.pdfFile.getTextRects(selectTextStart.page, 0, 0, pageSize.toSize(), rectFS, selectTextStart.textPtr, startCharIdx, endCharIdx - startCharIdx);
-                if (rectFS.size() > 0) {
-                    float pageMainOffset = selectTextStart.pageMainOffset;
-                    float pageSecondaryOffset = selectTextStart.pageSecondaryOffset;
-                    for (RectF rectF : rectFS) {
-                        rectF.offset(pageSecondaryOffset, pageMainOffset);
-                        LogUtils.logD(TAG, " rectF " + rectF, true);
-                        pdfViewForeground.drawRect(rectF);
-                    }
-                    pdfView.postInvalidate();
-                }
-            }
+        if (editHandler != null){
+            editHandler.addEditTextTask(selectTextStart, selectTextEnd);
         }
     }
-
-//    public ArrayList<RectF> mergeLineRects(List<RectF> selRects, RectF box) {
-//        RectF tmp = new RectF();
-//        ArrayList<RectF> selLineRects = new ArrayList<>(selRects.size());
-//        RectF currentLineRect=null;
-//        for(RectF rI:selRects) {
-//            //CMN.Log("RectF rI:selRects", rI);
-//            if(currentLineRect!=null&&Math.abs((currentLineRect.top+currentLineRect.bottom)-(rI.top+rI.bottom))<currentLineRect.bottom-currentLineRect.top) {
-//                currentLineRect.left = Math.min(currentLineRect.left, rI.left);
-//                currentLineRect.right = Math.max(currentLineRect.right, rI.right);
-//                currentLineRect.top = Math.min(currentLineRect.top, rI.top);
-//                currentLineRect.bottom = Math.max(currentLineRect.bottom, rI.bottom);
-//            } else {
-//                currentLineRect=new RectF();
-//                currentLineRect.set(rI);
-//                selLineRects.add(currentLineRect);
-//                int cid = getCharIdxAtPos(rI.left + 1, rI.top + rI.height() / 2);
-//                if(cid>0) {
-//                    getCharLoosePos(tmp, cid);
-//                    currentLineRect.left = Math.min(currentLineRect.left, tmp.left);
-//                    currentLineRect.right = Math.max(currentLineRect.right, tmp.right);
-//                    currentLineRect.top = Math.min(currentLineRect.top, tmp.top);
-//                    currentLineRect.bottom = Math.max(currentLineRect.bottom, tmp.bottom);
-//                }
-//            }
-//            if(box!=null) {
-//                box.left = Math.min(box.left, currentLineRect.left);
-//                box.right = Math.max(box.right, currentLineRect.right);
-//                box.top = Math.min(box.top, currentLineRect.top);
-//                box.bottom = Math.max(box.bottom, currentLineRect.bottom);
-//            }
-//        }
-//        return selLineRects;
-//    }
 
     private void graphEdit(float x, float y) {
 
@@ -460,6 +402,10 @@ public class DragPinchManager implements GestureDetector.OnGestureListener, Gest
         float absX = Math.abs(velocityX);
         float absY = Math.abs(velocityY);
         return pdfView.isSwipeVertical() ? absY > absX : absX > absY;
+    }
+
+    public void setEditHandler(EditHandler editHandler) {
+        this.editHandler = editHandler;
     }
 }
 

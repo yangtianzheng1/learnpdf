@@ -391,4 +391,21 @@ public class PdfFile {
         return pdfiumCore.nativeCountAndGetRects(pdfDocument.mNativePagesPtr.get(Integer.valueOf(page)), offsetY, offsetX, size.getWidth(), size.getHeight(), arr, textPtr, selSt, selEd);
     }
 
+    public RectF getTextRect(int page, int textIndex){
+        return pdfiumCore.getTextRect(pdfDocument, page, textIndex);
+    }
+
+    public int nativeCountRects(long textPtr, int st, int ed){
+        return pdfiumCore.nativeCountRects(textPtr, st, ed);
+    }
+
+    public boolean nativeGetRect(int page, int offsetY, int offsetX, int width, int height, long textPtr, RectF rect, int idx){
+        return pdfiumCore.nativeGetRect(pdfDocument.mNativePagesPtr.get(Integer.valueOf(page)), offsetY, offsetX, width, height, textPtr, rect, idx);
+    }
+
+    public int nativeGetMixedLooseCharPos(int page, int offsetY, int offsetX, int width, int height, RectF pt, long tid, int index, boolean loose){
+        return pdfiumCore.nativeGetMixedLooseCharPos(pdfDocument.mNativePagesPtr.get(Integer.valueOf(page)),
+                offsetY, offsetX, width, height, pt, tid, index, loose);
+    }
+
 }

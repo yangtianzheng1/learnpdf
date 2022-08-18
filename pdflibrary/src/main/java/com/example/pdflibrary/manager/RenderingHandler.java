@@ -28,7 +28,7 @@ public class RenderingHandler extends Handler {
     private RectF renderBounds = new RectF();
     private Rect roundedRenderBounds = new Rect();
     private Matrix renderMatrix = new Matrix();
-    private boolean running = false;
+    private volatile boolean running = false;
 
     public RenderingHandler(Looper looper, PDFView pdfView) {
         super(looper);
@@ -122,7 +122,7 @@ public class RenderingHandler extends Handler {
         running = true;
     }
 
-    private class RenderingTask {
+    private static class RenderingTask {
 
         float width, height;
 

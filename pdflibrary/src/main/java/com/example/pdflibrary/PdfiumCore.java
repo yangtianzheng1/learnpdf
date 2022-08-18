@@ -711,6 +711,11 @@ public class PdfiumCore {
         return doc.mNativeSearchHandlePtr.containsKey(index);
     }
 
+    public native int nativeCountRects(long textPtr, int st, int ed);
+
+    public native boolean nativeGetRect(long pagePtr, int offsetY, int offsetX, int width, int height, long textPtr, RectF rect, int idx);
+
+    public native int nativeGetMixedLooseCharPos(long pagePtr, int offsetY, int offsetX, int width, int height, RectF pt, long tid, int index, boolean loose);
 
     private native long nativeOpenDocument(int fd, String password);
 

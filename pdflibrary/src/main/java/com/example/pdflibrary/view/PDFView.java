@@ -23,6 +23,7 @@ import android.widget.RelativeLayout;
 import com.example.pdflibrary.Constants;
 import com.example.pdflibrary.PdfFile;
 import com.example.pdflibrary.PdfiumCore;
+import com.example.pdflibrary.edit.EditHandler;
 import com.example.pdflibrary.edit.PdfEditColor;
 import com.example.pdflibrary.edit.PdfEditMode;
 import com.example.pdflibrary.element.Bookmark;
@@ -134,6 +135,9 @@ public class PDFView extends RelativeLayout {
     /** Handler always waiting in the background and rendering tasks */
     public RenderingHandler renderingHandler;
 
+    private HandlerThread editHandlerThread;
+    public EditHandler editHandler;
+
     private PagesLoader pagesLoader;
 
     public Callbacks callbacks = new Callbacks();
@@ -223,6 +227,7 @@ public class PDFView extends RelativeLayout {
         super(context, set);
 
         renderingHandlerThread = new HandlerThread("PDF renderer");
+        editHandlerThread = new HandlerThread("pdf edit", Thread.MAX_PRIORITY);
 
         if (isInEditMode()) {
             return;
@@ -444,12 +449,12 @@ public class PDFView extends RelativeLayout {
     protected void onDetachedFromWindow() {
         recycle();
         if (renderingHandlerThread != null) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2) {
-                renderingHandlerThread.quitSafely();
-            } else {
-                renderingHandlerThread.quit();
-            }
+            renderingHandlerThread.quitSafely();
             renderingHandlerThread = null;
+        }
+        if (editHandlerThread != null) {
+            editHandlerThread.quitSafely();
+            editHandlerThread = null;
         }
         super.onDetachedFromWindow();
     }
@@ -750,12 +755,19 @@ public class PDFView extends RelativeLayout {
         renderingHandler = new RenderingHandler(renderingHandlerThread.getLooper(), this);
         renderingHandler.start();
 
+        if (!editHandlerThread.isAlive()){
+            editHandlerThread.start();
+        }
+        editHandler = new EditHandler(editHandlerThread.getLooper(), this, pdfViewForeground);
+        editHandler.start();
+
         if (scrollHandle != null) {
             scrollHandle.setupLayout(this);
             isScrollHandleInit = true;
         }
 
         dragPinchManager.enable();
+        dragPinchManager.setEditHandler(editHandler);
 
         callbacks.callOnLoadComplete(pdfFile.getPagesCount());
 

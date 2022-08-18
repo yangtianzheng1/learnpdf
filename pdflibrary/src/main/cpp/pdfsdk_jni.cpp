@@ -1122,6 +1122,34 @@ JNI_FUNC(jboolean, PdfiumCore, nativeGetRect)(JNI_ARGS, jlong pagePtr, jint offs
     return ret;
 }
 
+JNI_FUNC(jboolean, PdfiumCore, nativeGetMixedLooseCharPos)(JNI_ARGS, jlong pagePtr, jint offsetY, jint offsetX, jint width, jint height, jobject pt, jlong textPtr, jint idx, jboolean loose) {
+    jclass rectF = env->FindClass("android/graphics/RectF");
+    jmethodID rectF_ = env->GetMethodID(rectF, "<init>", "(FFFF)V");
+    jmethodID rectF_set = env->GetMethodID(rectF, "set", "(FFFF)V");
+    double left, top, right, bottom;
+    if(!FPDFText_GetCharBox((FPDF_TEXTPAGE)textPtr, idx, &left, &right, &bottom, &top)) {
+        return false;
+    }
+    FS_RECTF res={0};
+    if(!FPDFText_GetLooseCharBox((FPDF_TEXTPAGE)textPtr, idx, &res)) {
+        return false;
+    }
+    top=fmax(res.top, top);
+    bottom=fmin(res.bottom, bottom);
+    left=fmin(res.left, left);
+    right=fmax(res.right, right);
+    int deviceX, deviceY;
+    FPDF_PageToDevice((FPDF_PAGE)pagePtr, 0, 0, width, height, 0, left, top, &deviceX, &deviceY);
+    width = right-left;
+    height = top-bottom;
+    top=deviceY+offsetY;
+    left=deviceX+offsetX;
+    right=left+width;
+    bottom=top+height;
+    env->CallVoidMethod(pt, rectF_set, left, top, right, bottom);
+    return true;
+}
+
 
 
 
