@@ -11,6 +11,7 @@ import com.example.pdflibrary.view.PDFView;
 import com.example.pdflibrary.view.PDFViewForeground;
 
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 
 public class EditHandler extends Handler {
@@ -19,8 +20,8 @@ public class EditHandler extends Handler {
 
     private static final String TAG = EditHandler.class.getName();
 
-    private PDFView pdfView;
-    private PDFViewForeground pdfViewForeground;
+    private final PDFView pdfView;
+    private final PDFViewForeground pdfViewForeground;
 
     private volatile boolean running = false;
 
@@ -30,7 +31,10 @@ public class EditHandler extends Handler {
         this.pdfViewForeground = pdfViewForeground;
     }
 
-    public void addEditTextTask( SelectText startSelectText, SelectText endSelectText){
+    public void addEditTextTask(SelectText startSelectText, SelectText endSelectText) {
+        if (startSelectText == null || endSelectText == null) {
+            return;
+        }
         removeMessages(MSG_TEXT_PAINT);
         EditTextTask editTextTask = new EditTextTask(startSelectText, endSelectText);
         Message msg = obtainMessage(MSG_TEXT_PAINT, editTextTask);
@@ -39,7 +43,7 @@ public class EditHandler extends Handler {
 
     @Override
     public void handleMessage(Message message) {
-        switch (message.what){
+        switch (message.what) {
             case MSG_TEXT_PAINT:
                 EditTextTask task = (EditTextTask) message.obj;
                 dealEditTextTask(task);
@@ -49,13 +53,12 @@ public class EditHandler extends Handler {
         }
     }
 
-    private void dealEditTextTask(EditTextTask editTextTask){
+    private void dealEditTextTask(EditTextTask editTextTask) {
         long start1 = System.currentTimeMillis();
         SelectText start = editTextTask.startSelectText;
         SelectText end = editTextTask.endSelectText;
         if (start.page != -1 && start.page == end.page) {
-            if (start.pageText != null && start.charIdx >= 0 && start.charIdx < start.pageText.length()
-                    && end.charIdx >= 0 && end.charIdx < end.pageText.length()) {
+            if (start.pageText != null && start.charIdx >= 0 && start.charIdx < start.pageText.length() && end.charIdx >= 0 && end.charIdx < end.pageText.length()) {
                 int startCharIdx = start.charIdx;
                 int endCharIdx = end.charIdx;
                 if (startCharIdx == endCharIdx) {
@@ -67,63 +70,79 @@ public class EditHandler extends Handler {
                     endCharIdx = temp;
                 }
                 String result = start.pageText.substring(startCharIdx, endCharIdx);
-                LogUtils.logD(TAG, " result " + result, false);
-                LogUtils.logD(TAG, " length " + result.length(), false);
-                String lines[] = result.split("\\r?\\n");
+                LogUtils.logD(TAG, " result " + result, true);
+                LogUtils.logD(TAG, " length " + result.length(), true);
+                String[] lines = result.split("\\r?\\n");
                 int startIndex = startCharIdx;
                 int endIndex;
-                ArrayList<RectF> rectFS = new ArrayList<>(lines.length);
+                LinkedList<RectF> rectFS = new LinkedList<RectF>();
                 SizeF pageSize = pdfView.pdfFile.getScaledPageSize(start.page, pdfView.getZoom());
                 float pageMainOffset = start.pageMainOffset;
                 float pageSecondaryOffset = start.pageSecondaryOffset;
-                pdfViewForeground.clear();
-                for (String string : lines){
+                for (String string : lines) {
                     int length = string.length();
                     endIndex = startIndex + length;
-                    if (endIndex > endCharIdx){
+                    if (endIndex > endCharIdx) {
                         break;
                     }
                     ArrayList<RectF> subRectFS = new ArrayList<>();
-                    if (length < 4){
-                        pdfView.pdfFile.getTextRects(start.page, 0, 0, pageSize.toSize(), subRectFS, start.textPtr, startIndex,
-                                length + 1);
-                    }else {
-                        pdfView.pdfFile.getTextRects(start.page, 0, 0, pageSize.toSize(), subRectFS, start.textPtr, startIndex,
-                                3);
-                        if (subRectFS.size() == 0){
+                    if (length < 4) {
+                        pdfView.pdfFile.getTextRects(start.page, 0, 0, pageSize.toSize(), subRectFS, start.textPtr, startIndex, length + 1);
+                    } else {
+                        int count = 4;
+                        while (subRectFS.size() == 0 && count >= 2) {
+                            pdfView.pdfFile.getTextRects(start.page, 0, 0, pageSize.toSize(), subRectFS, start.textPtr, startIndex, count);
+                            count--;
+                        }
+                        if (subRectFS.size() == 0) {
                             LogUtils.logD(TAG, " error  subRectFS.size() == 0", true);
+                            continue;
                         }
-                        ArrayList<RectF> temp = new ArrayList<>();
-                        pdfView.pdfFile.getTextRects(start.page, 0, 0, pageSize.toSize(), temp, start.textPtr, endIndex - 2,
-                                3);
-                        if (temp.size() == 0 ){
-                            LogUtils.logD(TAG, " error  temp.size() == 0", true);
+                        count = 2;
+                        ArrayList<RectF> rightRectFs = new ArrayList<>();
+                        while (rightRectFs.size() == 0 && count >= 1) {
+                            pdfView.pdfFile.getTextRects(start.page, 0, 0, pageSize.toSize(), rightRectFs, start.textPtr, endIndex - count, count + 1);
+                            count--;
                         }
-                        subRectFS.addAll(temp);
+                        if (rightRectFs.size() == 0) {
+                            LogUtils.logD(TAG, " error  rightRectFs.size() == 0", true);
+                            continue;
+                        }
+                        subRectFS.addAll(rightRectFs);
                     }
-                    if (subRectFS.size() > 0){
+                    if (subRectFS.size() > 0) {
                         RectF left = subRectFS.get(0);
                         LogUtils.logD(TAG, " rectF  left" + left, false);
-                        if (subRectFS.size() > 1){
+                        if (subRectFS.size() > 1) {
                             RectF right = subRectFS.get(subRectFS.size() - 1);
                             LogUtils.logD(TAG, " rectF  right " + right, false);
                             left.right = right.right;
-                            if (left.top > right.top){
+                            if (left.top > right.top) {
                                 left.top = right.top;
                             }
-                            left.top -= 10;
-                            if (left.bottom <  right.bottom){
+                            if (left.bottom < right.bottom) {
                                 left.bottom = right.bottom;
                             }
-                            left.bottom += 15;
                         }
+                        left.top -= 10;
+                        left.bottom += 15;
+                        left.left -= 5;
+                        left.right += 25;
                         left.offset(pageSecondaryOffset, pageMainOffset);
                         rectFS.add(left);
-                        pdfViewForeground.drawRect(left);
                     }
                     startIndex = endIndex + 2;
                 }
-                pdfView.postInvalidate();
+                if (rectFS.size() > 0 && pdfView != null) {
+                    pdfView.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            pdfViewForeground.clear();
+                            pdfViewForeground.addEditTextRect(rectFS);
+                            pdfView.invalidate();
+                        }
+                    });
+                }
                 LogUtils.logD(TAG, " costTime " + (System.currentTimeMillis() - start1), true);
             }
         }
@@ -137,7 +156,7 @@ public class EditHandler extends Handler {
         running = true;
     }
 
-    private static class EditTextTask{
+    private static class EditTextTask {
 
         SelectText startSelectText;
         SelectText endSelectText;
@@ -152,20 +171,20 @@ public class EditHandler extends Handler {
     public ArrayList<RectF> mergeLineRects(List<RectF> selRects, RectF box, SelectText selectText, SizeF pageSize) {
         RectF tmp = new RectF();
         ArrayList<RectF> selLineRects = new ArrayList<>(selRects.size());
-        RectF currentLineRect=null;
-        for(RectF rI:selRects) {
+        RectF currentLineRect = null;
+        for (RectF rI : selRects) {
             //CMN.Log("RectF rI:selRects", rI);
-            if(currentLineRect!=null&&Math.abs((currentLineRect.top+currentLineRect.bottom)-(rI.top+rI.bottom))<currentLineRect.bottom-currentLineRect.top) {
+            if (currentLineRect != null && Math.abs((currentLineRect.top + currentLineRect.bottom) - (rI.top + rI.bottom)) < currentLineRect.bottom - currentLineRect.top) {
                 currentLineRect.left = Math.min(currentLineRect.left, rI.left);
                 currentLineRect.right = Math.max(currentLineRect.right, rI.right);
                 currentLineRect.top = Math.min(currentLineRect.top, rI.top);
                 currentLineRect.bottom = Math.max(currentLineRect.bottom, rI.bottom);
             } else {
-                currentLineRect=new RectF();
+                currentLineRect = new RectF();
                 currentLineRect.set(rI);
                 selLineRects.add(currentLineRect);
                 int cid = getCharIdxAtPos(rI.left + 1, rI.top + rI.height() / 2, selectText, pageSize);
-                if(cid>0) {
+                if (cid > 0) {
                     getCharLoosePos(tmp, cid, selectText, pageSize);
                     currentLineRect.left = Math.min(currentLineRect.left, tmp.left);
                     currentLineRect.right = Math.max(currentLineRect.right, tmp.right);
@@ -173,7 +192,7 @@ public class EditHandler extends Handler {
                     currentLineRect.bottom = Math.max(currentLineRect.bottom, tmp.bottom);
                 }
             }
-            if(box!=null) {
+            if (box != null) {
                 box.left = Math.min(box.left, currentLineRect.left);
                 box.right = Math.max(box.right, currentLineRect.right);
                 box.top = Math.min(box.top, currentLineRect.top);
@@ -183,19 +202,18 @@ public class EditHandler extends Handler {
         return selLineRects;
     }
 
-    /** Get the char index at a page position
+    /**
+     * Get the char index at a page position
+     *
      * @param posX position X in the page coordinate<br/>
      * @param posY position Y in the page coordinate<br/>
-     * */
+     */
     public int getCharIdxAtPos(float posX, float posY, SelectText selectText, SizeF pageSize) {
         return pdfView.pdfFile.getCharIndexAtCoord(selectText.page, pageSize.getWidth(), pageSize.getHeight(), selectText.textPtr, posX, posY, 100, 100);
     }
 
     public void getCharLoosePos(RectF pos, int index, SelectText selectText, SizeF pageSize) {
-        pdfView.pdfFile.nativeGetMixedLooseCharPos(selectText.page
-                , 0
-                , 0
-                , (int) pageSize.getWidth(), (int)pageSize.getHeight(), pos, selectText.textPtr, index, true);
+        pdfView.pdfFile.nativeGetMixedLooseCharPos(selectText.page, 0, 0, (int) pageSize.getWidth(), (int) pageSize.getHeight(), pos, selectText.textPtr, index, true);
     }
 
 }

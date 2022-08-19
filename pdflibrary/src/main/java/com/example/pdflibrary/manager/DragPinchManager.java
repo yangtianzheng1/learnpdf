@@ -178,8 +178,7 @@ public class DragPinchManager implements GestureDetector.OnGestureListener, Gest
         isEraserMode = false;
         if (pdfView.getCurrentMode() == PdfEditMode.TEXT) {
             isTextEditMode = true;
-            selectTextStart = getTextByActionTap(e.getX(), e.getY());
-            pdfViewForeground.clear();
+            selectTextStart = getTextByActionTap(e.getX(), e.getY(), false);
         } else if (pdfView.getCurrentMode() == PdfEditMode.GRAPH) {
             isGraphEditMode = true;
         } else if (pdfView.getCurrentMode() == PdfEditMode.ERASER) {
@@ -199,7 +198,7 @@ public class DragPinchManager implements GestureDetector.OnGestureListener, Gest
         return false;
     }
 
-    private SelectText getTextByActionTap(float x, float y) {
+    private SelectText getTextByActionTap(float x, float y, boolean isMoveOrUp) {
         SelectText selectText = new SelectText();
         ResultCoordinate resultCoordinate = ViewCanvasPageCoordinateUtil.viewCoordinateToCanvas(x, y,
                 pdfView.getCurrentXOffset(), pdfView.getCurrentYOffset());
@@ -209,8 +208,25 @@ public class DragPinchManager implements GestureDetector.OnGestureListener, Gest
         int page = ViewCanvasPageCoordinateUtil.getPageIndexByCanvasXY(resultCoordinate.x.longValue(), resultCoordinate.y.longValue(), pdfView.getZoom(),
                 pdfView.isSwipeVertical(), pdfView.pdfFile);
         selectText.page = page;
+
+        if (isMoveOrUp){
+            if (selectTextStart != null){
+                if (selectTextStart.page != page){
+                    return null;
+                }else {
+                    selectText.pageMainOffset = selectTextStart.pageMainOffset;
+                    selectText.pageSecondaryOffset = selectTextStart.pageSecondaryOffset;
+                    selectText.textPtr = selectTextStart.textPtr;
+                    selectText.pageText = selectTextStart.pageText;
+                    SizeF pageSize = pdfView.pdfFile.getScaledPageSize(page, pdfView.getZoom());
+                    double dx = resultCoordinate.x - selectTextStart.pageSecondaryOffset;
+                    double dy = resultCoordinate.y - selectTextStart.pageMainOffset;
+                    selectText.charIdx = pdfView.pdfFile.getCharIndexAtCoord(page, pageSize.getWidth(), pageSize.getHeight(), selectText.textPtr, dx, dy, 10, 10);
+                    return selectText;
+                }
+            }
+        }
         SizeF pageSize = pdfView.pdfFile.getScaledPageSize(page, pdfView.getZoom());
-        LogUtils.logD(TAG, " pageSize " + pageSize);
         float offsetY = pdfView.pdfFile.getPageOffset(page, pdfView.getZoom());
         float offsetX = pdfView.pdfFile.getSecondaryPageOffset(page, pdfView.getZoom());
         selectText.pageMainOffset = offsetY;
@@ -372,15 +388,16 @@ public class DragPinchManager implements GestureDetector.OnGestureListener, Gest
 
     private void textEdit(float x, float y, boolean isEnd) {
         step++;
-        if (step == 2 || isEnd){
+        if (step == 3 || isEnd){
             step = 0;
         }else {
             return;
         }
-        selectTextEnd = getTextByActionTap(x, y);
+        long start = System.currentTimeMillis();
         if (editHandler != null){
-            editHandler.addEditTextTask(selectTextStart, selectTextEnd);
+            editHandler.addEditTextTask(selectTextStart, getTextByActionTap(x, y, true));
         }
+        LogUtils.logD(TAG, " costTime " + (System.currentTimeMillis() - start), true);
     }
 
     private void graphEdit(float x, float y) {

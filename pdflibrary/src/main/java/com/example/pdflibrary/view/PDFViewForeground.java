@@ -13,7 +13,7 @@ public class PDFViewForeground {
 
     private String TAG =  "PDFViewForeground";
 
-    private List<RectF> rectFS = new LinkedList<>();
+    private List<RectF> editTextRectFs = new LinkedList<>();
     private Paint paint;
 
     public PDFViewForeground(PDFView pdfView) {
@@ -22,25 +22,19 @@ public class PDFViewForeground {
     }
 
     public void onDraw(Canvas canvas){
-        if (rectFS.size() > 0){
-            for (RectF rectF : rectFS){
+        if (editTextRectFs.size() > 0){
+            for (RectF rectF : editTextRectFs){
                 canvas.drawRect(rectF, paint);
-                LogUtils.logD(TAG, rectFS.toString());
             }
         }
     }
 
-    public void drawRect(Float left, Float top, Float right, Float bottom){
-        RectF rectF = new RectF(left,  top, right , bottom);
-        rectFS.add(rectF);
-    }
-
-    public synchronized void drawRect(RectF rectF){
-        rectFS.add(rectF);
-    }
-
     public void clear(){
-        rectFS.clear();
+        editTextRectFs.clear();
+    }
+
+    public void addEditTextRect(List<RectF> rectFList){
+        editTextRectFs.addAll(rectFList);
     }
 
     public void zoom(float zoom){
