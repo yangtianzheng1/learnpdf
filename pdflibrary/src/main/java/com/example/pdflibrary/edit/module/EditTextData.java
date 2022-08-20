@@ -11,7 +11,7 @@ public class EditTextData implements Comparable{
     public String pageText;
     public int startIndexText;
     public int endIndexText;
-    public PdfEditColor color = PdfEditColor.YELLOW;
+    public PdfEditColor color = null;
     public List<RectF> rectFList;
 
     @Override

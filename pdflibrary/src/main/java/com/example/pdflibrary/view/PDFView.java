@@ -25,6 +25,7 @@ import com.example.pdflibrary.PdfFile;
 import com.example.pdflibrary.PdfiumCore;
 import com.example.pdflibrary.edit.EditHandler;
 import com.example.pdflibrary.edit.PdfEditColor;
+import com.example.pdflibrary.edit.PdfEditGraph;
 import com.example.pdflibrary.edit.PdfEditMode;
 import com.example.pdflibrary.edit.dealinterface.BusinessInterface;
 import com.example.pdflibrary.element.Bookmark;
@@ -1336,26 +1337,34 @@ public class PDFView extends RelativeLayout {
 
     private enum State {DEFAULT, LOADED, SHOWN, ERROR}
 
-    private PdfEditMode currentMode = PdfEditMode.TEXT;
-    private int editColor = PdfEditColor.BLUE.getColor();
+    private PdfEditMode currentMode = PdfEditMode.NONE;
+    private PdfEditColor currentColor = PdfEditColor.YELLOW;
+    private PdfEditGraph pdfEditGraph = PdfEditGraph.Rectangle;
 
     // pdf 编辑模式
-    public void  editModeChange(PdfEditMode mode){
+    public void editModeChange(PdfEditMode mode){
         currentMode = mode;
     }
 
     // pdf 编辑模式加更改颜色
-    public void  colorChange(PdfEditColor color, PdfEditMode mode){
-        editColor = color.getColor();
-        currentMode = mode;
+    public void colorChange(PdfEditColor color){
+        currentColor = color;
+    }
+
+    public void graphChange(PdfEditGraph graph){
+        pdfEditGraph = graph;
     }
 
     public PdfEditMode getCurrentMode(){
         return currentMode;
     }
 
-    public int getEditColor(){
-        return editColor;
+    public PdfEditColor getEditColor(){
+        return currentColor;
+    }
+
+    public PdfEditGraph getPdfEditGraph(){
+        return pdfEditGraph;
     }
 
     public class Configurator {

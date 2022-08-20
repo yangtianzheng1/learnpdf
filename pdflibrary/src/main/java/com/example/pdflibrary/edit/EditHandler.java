@@ -32,12 +32,12 @@ public class EditHandler extends Handler {
         this.pdfViewForeground = pdfViewForeground;
     }
 
-    public void addEditTextTask(SelectText startSelectText, SelectText endSelectText, boolean isEnd) {
+    public void addEditTextTask(SelectText startSelectText, SelectText endSelectText, boolean isEnd, PdfEditColor editColor) {
         if (startSelectText == null || endSelectText == null) {
             return;
         }
         removeMessages(MSG_TEXT_PAINT);
-        EditTextTask editTextTask = new EditTextTask(startSelectText, endSelectText);
+        EditTextTask editTextTask = new EditTextTask(startSelectText, endSelectText, editColor);
         editTextTask.isActionLeave = isEnd;
         Message msg = obtainMessage(MSG_TEXT_PAINT, editTextTask);
         sendMessage(msg);
@@ -137,6 +137,7 @@ public class EditHandler extends Handler {
                 if (rectFS.size() > 0 ) {
                     boolean isActionLeave = editTextTask.isActionLeave;
                     EditTextData editTextData = new EditTextData();
+                    editTextData.color = editTextTask.pdfEditColor;
                     editTextData.rectFList = rectFS;
                     editTextData.page = start.page;
                     editTextData.pageText = start.pageText;
@@ -173,10 +174,12 @@ public class EditHandler extends Handler {
         SelectText startSelectText;
         SelectText endSelectText;
         boolean isActionLeave = false;
+        PdfEditColor pdfEditColor = null;
 
-        public EditTextTask(SelectText startSelectText, SelectText endSelectText) {
+        public EditTextTask(SelectText startSelectText, SelectText endSelectText, PdfEditColor color) {
             this.startSelectText = startSelectText;
             this.endSelectText = endSelectText;
+            pdfEditColor = color;
         }
     }
 

@@ -32,15 +32,15 @@ public class PDFViewForeground {
     public PDFViewForeground(PDFView pdfView) {
         paint = new Paint();
         this.pdfView = pdfView;
-        paint.setColor(pdfView.getEditColor());
         selectPaint = new Paint();
         selectPaint.setStyle(Paint.Style.STROKE);
         selectPaint.setStrokeWidth(2);
         selectPaint.setPathEffect(new DashPathEffect(new float[]{9, 5}, 0));
-        selectPaint.setColor(PdfEditColor.PINK.getColor());
     }
 
     public void onDraw(Canvas canvas){
+        paint.setColor(pdfView.getEditColor().getColor());
+        selectPaint.setColor(pdfView.getEditColor().getColor());
         if (editTextRectFs.size() > 0){
             for (RectF rectF : editTextRectFs){
                 canvas.drawRect(rectF, paint);

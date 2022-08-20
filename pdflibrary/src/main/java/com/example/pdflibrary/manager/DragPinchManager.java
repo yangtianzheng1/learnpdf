@@ -56,9 +56,6 @@ public class DragPinchManager implements GestureDetector.OnGestureListener, Gest
     private boolean scaling = false;
     private boolean enabled = false;
 
-    private float editStartX = 0;
-    private float editStartY = 0;
-
     private boolean isTextEditMode = false;
     private boolean isGraphEditMode = false;
     private boolean isEraserMode = false;
@@ -130,7 +127,7 @@ public class DragPinchManager implements GestureDetector.OnGestureListener, Gest
                 if (widget == null){
                     return;
                 }
-                PopupWindow popupWindow = PopupWindowUtil.showEditTextPopupWindow(widget, pdfView, viewX, viewY, editTextData);
+                PopupWindow popupWindow = PopupWindowUtil.showEditTextPopupWindow(widget, pdfView, viewX, viewY, editTextData, null);
                 widget.setEditTextInterface(new EditTextInterface() {
                     @Override
                     public void openColorWindow() {
@@ -174,7 +171,7 @@ public class DragPinchManager implements GestureDetector.OnGestureListener, Gest
 
             }
         });
-        PopupWindow popupWindow = PopupWindowUtil.showSelectColorPopupWindow(widget, pdfView, viewX, viewY, editTextData);
+        PopupWindow popupWindow = PopupWindowUtil.showSelectColorPopupWindow(widget, pdfView, viewX, viewY, editTextData, false, false, null);
     }
 
     private void openGraphSelectWindow(float viewX, float viewY){
@@ -188,7 +185,7 @@ public class DragPinchManager implements GestureDetector.OnGestureListener, Gest
 
             }
         });
-        PopupWindow popupWindow = PopupWindowUtil.showSelectGraphPopupWindow(widget, pdfView, viewX, viewY);
+        PopupWindow popupWindow = PopupWindowUtil.showSelectGraphPopupWindow(widget, pdfView, viewX, viewY, null);
     }
 
     private boolean checkLinkTapped(float x, float y) {
@@ -279,8 +276,6 @@ public class DragPinchManager implements GestureDetector.OnGestureListener, Gest
         } else if (pdfView.getCurrentMode() == PdfEditMode.ERASER) {
             isEraserMode = true;
         }
-        editStartX = e.getX();
-        editStartY = e.getY();
         return true;
     }
 
@@ -490,7 +485,7 @@ public class DragPinchManager implements GestureDetector.OnGestureListener, Gest
         }
         long start = System.currentTimeMillis();
         if (editHandler != null){
-            editHandler.addEditTextTask(selectTextStart, getTextByActionTap(x, y, true), isEnd);
+            editHandler.addEditTextTask(selectTextStart, getTextByActionTap(x, y, true), isEnd, pdfView.getEditColor());
         }
         LogUtils.logD(TAG, " costTime " + (System.currentTimeMillis() - start), true);
     }
