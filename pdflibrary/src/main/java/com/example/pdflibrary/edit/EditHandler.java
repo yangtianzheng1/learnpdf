@@ -5,6 +5,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 
+import com.example.pdflibrary.edit.module.EditTextData;
 import com.example.pdflibrary.util.LogUtils;
 import com.example.pdflibrary.util.SizeF;
 import com.example.pdflibrary.view.PDFView;
@@ -31,12 +32,13 @@ public class EditHandler extends Handler {
         this.pdfViewForeground = pdfViewForeground;
     }
 
-    public void addEditTextTask(SelectText startSelectText, SelectText endSelectText) {
+    public void addEditTextTask(SelectText startSelectText, SelectText endSelectText, boolean isEnd) {
         if (startSelectText == null || endSelectText == null) {
             return;
         }
         removeMessages(MSG_TEXT_PAINT);
         EditTextTask editTextTask = new EditTextTask(startSelectText, endSelectText);
+        editTextTask.isActionLeave = isEnd;
         Message msg = obtainMessage(MSG_TEXT_PAINT, editTextTask);
         sendMessage(msg);
     }
@@ -54,7 +56,6 @@ public class EditHandler extends Handler {
     }
 
     private void dealEditTextTask(EditTextTask editTextTask) {
-        long start1 = System.currentTimeMillis();
         SelectText start = editTextTask.startSelectText;
         SelectText end = editTextTask.endSelectText;
         if (start.page != -1 && start.page == end.page) {
@@ -133,17 +134,28 @@ public class EditHandler extends Handler {
                     }
                     startIndex = endIndex + 2;
                 }
-                if (rectFS.size() > 0 && pdfView != null) {
+                if (rectFS.size() > 0 ) {
+                    boolean isActionLeave = editTextTask.isActionLeave;
+                    EditTextData editTextData = new EditTextData();
+                    editTextData.rectFList = rectFS;
+                    editTextData.page = start.page;
+                    editTextData.pageText = start.pageText;
+                    editTextData.startIndexText = startCharIdx;
+                    editTextData.endIndexText = endCharIdx;
+
                     pdfView.post(new Runnable() {
                         @Override
                         public void run() {
                             pdfViewForeground.clear();
-                            pdfViewForeground.addEditTextRect(rectFS);
+                            if (isActionLeave){
+                                pdfViewForeground.addEditTextData(editTextData);
+                            }else {
+                                pdfViewForeground.addEditTextRect(rectFS);
+                            }
                             pdfView.invalidate();
                         }
                     });
                 }
-                LogUtils.logD(TAG, " costTime " + (System.currentTimeMillis() - start1), true);
             }
         }
     }
@@ -160,6 +172,7 @@ public class EditHandler extends Handler {
 
         SelectText startSelectText;
         SelectText endSelectText;
+        boolean isActionLeave = false;
 
         public EditTextTask(SelectText startSelectText, SelectText endSelectText) {
             this.startSelectText = startSelectText;

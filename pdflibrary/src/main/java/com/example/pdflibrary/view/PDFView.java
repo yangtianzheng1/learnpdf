@@ -26,6 +26,7 @@ import com.example.pdflibrary.PdfiumCore;
 import com.example.pdflibrary.edit.EditHandler;
 import com.example.pdflibrary.edit.PdfEditColor;
 import com.example.pdflibrary.edit.PdfEditMode;
+import com.example.pdflibrary.edit.dealinterface.BusinessInterface;
 import com.example.pdflibrary.element.Bookmark;
 import com.example.pdflibrary.element.Link;
 import com.example.pdflibrary.element.Meta;
@@ -78,6 +79,14 @@ public class PDFView extends RelativeLayout {
     private float minZoom = DEFAULT_MIN_SCALE;
     private float midZoom = DEFAULT_MIN_SCALE;
     private float maxZoom = DEFAULT_MIN_SCALE;
+
+    public void setBusinessInterface(BusinessInterface businessInterface) {
+        this.businessInterface = businessInterface;
+    }
+
+    public BusinessInterface getBusinessInterface() {
+        return businessInterface;
+    }
 
     /**
      * START - scrolling in first page direction
@@ -219,6 +228,8 @@ public class PDFView extends RelativeLayout {
 
     /** Holds last used Configurator that should be loaded when view has size */
     private Configurator waitingDocumentConfigurator;
+
+    private BusinessInterface businessInterface;
 
     public PDFViewForeground pdfViewForeground;
 

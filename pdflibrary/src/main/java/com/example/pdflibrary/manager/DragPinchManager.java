@@ -10,12 +10,24 @@ import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.ScaleGestureDetector;
 import android.view.View;
+import android.widget.PopupWindow;
 
 import com.example.pdflibrary.Constants;
 import com.example.pdflibrary.PdfFile;
+import com.example.pdflibrary.edit.EditDataManager;
 import com.example.pdflibrary.edit.EditHandler;
+import com.example.pdflibrary.edit.PdfEditColor;
+import com.example.pdflibrary.edit.PdfEditGraph;
 import com.example.pdflibrary.edit.PdfEditMode;
 import com.example.pdflibrary.edit.SelectText;
+import com.example.pdflibrary.edit.dealinterface.EditTextInterface;
+import com.example.pdflibrary.edit.dealinterface.EditTextInterfaceWidget;
+import com.example.pdflibrary.edit.dealinterface.SelectColorInterface;
+import com.example.pdflibrary.edit.dealinterface.SelectColorInterfaceWidget;
+import com.example.pdflibrary.edit.dealinterface.SelectGraphInterface;
+import com.example.pdflibrary.edit.dealinterface.SelectGraphInterfaceWidget;
+import com.example.pdflibrary.edit.module.EditTextData;
+import com.example.pdflibrary.edit.module.PopupWindowUtil;
 import com.example.pdflibrary.element.Link;
 import com.example.pdflibrary.element.LinkTapEvent;
 import com.example.pdflibrary.scroll.ScrollHandle;
@@ -52,10 +64,10 @@ public class DragPinchManager implements GestureDetector.OnGestureListener, Gest
     private boolean isEraserMode = false;
 
     private SelectText selectTextStart;
-    private SelectText selectTextEnd;
 
     private PDFViewForeground pdfViewForeground;
     private EditHandler editHandler;
+    private EditDataManager editDataManager;
 
     public DragPinchManager(PDFView pdfView, AnimationManager animationManager, PDFViewForeground pdfViewForeground) {
         this.pdfView = pdfView;
@@ -63,6 +75,8 @@ public class DragPinchManager implements GestureDetector.OnGestureListener, Gest
         this.pdfViewForeground = pdfViewForeground;
         gestureDetector = new GestureDetector(pdfView.getContext(), this);
         scaleGestureDetector = new ScaleGestureDetector(pdfView.getContext(), this);
+        editDataManager = new EditDataManager();
+        pdfViewForeground.setEditDataManager(editDataManager);
         pdfView.setOnTouchListener(this);
     }
 
@@ -82,6 +96,7 @@ public class DragPinchManager implements GestureDetector.OnGestureListener, Gest
     public boolean onSingleTapConfirmed(MotionEvent e) {
         boolean onTapHandled = pdfView.callbacks.callOnTap(e);
 //        boolean linkTapped = checkLinkTapped(e.getX(), e.getY());
+        dealSingleTap(e);
         if (!onTapHandled) {
             ScrollHandle ps = pdfView.getScrollHandle();
             if (ps != null && !pdfView.documentFitsView()) {
@@ -94,6 +109,86 @@ public class DragPinchManager implements GestureDetector.OnGestureListener, Gest
         }
         pdfView.performClick();
         return true;
+    }
+
+    private void dealSingleTap(MotionEvent e){
+        if (isTextEditMode){
+            searchClickItem(getTextByActionTap(e.getX(), e.getY(), false), e.getX(), e.getY());
+        }else if (isGraphEditMode){
+
+        }else if (isEraserMode){
+
+        }
+    }
+
+    private void searchClickItem(SelectText selectText, float viewX, float viewY){
+        if (selectText != null){
+            EditTextData editTextData = editDataManager.findEditTextData(selectText.page, selectText.charIdx);
+            if (editTextData != null){
+                pdfViewForeground.selectEditTextRectFs(editTextData);
+                EditTextInterfaceWidget widget = pdfView.getBusinessInterface().getEditTextWidget();
+                if (widget == null){
+                    return;
+                }
+                PopupWindow popupWindow = PopupWindowUtil.showEditTextPopupWindow(widget, pdfView, viewX, viewY, editTextData);
+                widget.setEditTextInterface(new EditTextInterface() {
+                    @Override
+                    public void openColorWindow() {
+                        popupWindow.dismiss();
+                        openColorSelectWindow(editTextData, viewX, viewY);
+                    }
+
+                    @Override
+                    public void copyQuote() {
+
+                    }
+
+                    @Override
+                    public void copyLabel() {
+
+                    }
+
+                    @Override
+                    public void copyLink() {
+
+                    }
+
+                    @Override
+                    public void cleanColor() {
+                        openGraphSelectWindow(viewX, viewY);
+                    }
+                });
+                pdfView.invalidate();
+            }
+        }
+    }
+
+    private void openColorSelectWindow(EditTextData editTextData, float viewX, float viewY){
+        SelectColorInterfaceWidget widget = pdfView.getBusinessInterface().getSelectColorWidget();
+        if (widget == null){
+            return;
+        }
+        widget.setSelectColorInterface(new SelectColorInterface() {
+            @Override
+            public void selectColorCallBack(PdfEditColor pdfEditColor) {
+
+            }
+        });
+        PopupWindow popupWindow = PopupWindowUtil.showSelectColorPopupWindow(widget, pdfView, viewX, viewY, editTextData);
+    }
+
+    private void openGraphSelectWindow(float viewX, float viewY){
+        SelectGraphInterfaceWidget widget = pdfView.getBusinessInterface().getSelectGraphWidget();
+        if (widget == null){
+            return;
+        }
+        widget.setSelectGraphInterface(new SelectGraphInterface() {
+            @Override
+            public void selectGraphCallBack(PdfEditGraph pdfEditGraph) {
+
+            }
+        });
+        PopupWindow popupWindow = PopupWindowUtil.showSelectGraphPopupWindow(widget, pdfView, viewX, viewY);
     }
 
     private boolean checkLinkTapped(float x, float y) {
@@ -395,7 +490,7 @@ public class DragPinchManager implements GestureDetector.OnGestureListener, Gest
         }
         long start = System.currentTimeMillis();
         if (editHandler != null){
-            editHandler.addEditTextTask(selectTextStart, getTextByActionTap(x, y, true));
+            editHandler.addEditTextTask(selectTextStart, getTextByActionTap(x, y, true), isEnd);
         }
         LogUtils.logD(TAG, " costTime " + (System.currentTimeMillis() - start), true);
     }
