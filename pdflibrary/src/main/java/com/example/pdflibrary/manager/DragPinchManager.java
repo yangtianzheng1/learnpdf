@@ -33,6 +33,7 @@ import com.example.pdflibrary.element.LinkTapEvent;
 import com.example.pdflibrary.scroll.ScrollHandle;
 import com.example.pdflibrary.util.LogUtils;
 import com.example.pdflibrary.util.ResultCoordinate;
+import com.example.pdflibrary.util.Size;
 import com.example.pdflibrary.util.SizeF;
 import com.example.pdflibrary.util.ViewCanvasPageCoordinateUtil;
 import com.example.pdflibrary.view.PDFView;
@@ -290,6 +291,7 @@ public class DragPinchManager implements GestureDetector.OnGestureListener, Gest
 
     private SelectText getTextByActionTap(float x, float y, boolean isMoveOrUp) {
         SelectText selectText = new SelectText();
+        selectText.scale = pdfView.getZoom();
         ResultCoordinate resultCoordinate = ViewCanvasPageCoordinateUtil.viewCoordinateToCanvas(x, y,
                 pdfView.getCurrentXOffset(), pdfView.getCurrentYOffset());
         selectText.canvasX = resultCoordinate.x;
@@ -311,6 +313,9 @@ public class DragPinchManager implements GestureDetector.OnGestureListener, Gest
                     SizeF pageSize = pdfView.pdfFile.getScaledPageSize(page, pdfView.getZoom());
                     double dx = resultCoordinate.x - selectTextStart.pageSecondaryOffset;
                     double dy = resultCoordinate.y - selectTextStart.pageMainOffset;
+                    Size originalSize = pdfView.pdfFile.getOriginalPageSize(page);
+                    selectText.pageX = (float) (dx/pageSize.getWidth() * originalSize.getWidth());
+                    selectText.pageY = (float) ((1 - dy/pageSize.getHeight()) * originalSize.getHeight());
                     selectText.charIdx = pdfView.pdfFile.getCharIndexAtCoord(page, pageSize.getWidth(), pageSize.getHeight(), selectText.textPtr, dx, dy, 10, 10);
                     return selectText;
                 }
@@ -323,6 +328,9 @@ public class DragPinchManager implements GestureDetector.OnGestureListener, Gest
         selectText.pageSecondaryOffset = offsetX;
         double dx = resultCoordinate.x - offsetX;
         double dy = resultCoordinate.y - offsetY;
+        Size originalSize = pdfView.pdfFile.getOriginalPageSize(page);
+        selectText.pageX = (float) (dx/pageSize.getWidth() * originalSize.getWidth());
+        selectText.pageY = (float) ((1 - dy/pageSize.getHeight()) * originalSize.getHeight());
         long textId = pdfView.pdfFile.getPageTextId(page);
         selectText.textPtr = textId;
         selectText.pageText = pdfView.pdfFile.getTextFromTextPtr(textId);

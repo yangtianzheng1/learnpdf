@@ -18,4 +18,10 @@ public class SelectText {
     public String pageText;
     // 点击文字在文本中位置
     public int charIdx;
+
+    public float scale;
+
+    // 当前触控点在Pdf 页面上的坐标
+    public float pageX;
+    public float pageY;
 }
