@@ -2,17 +2,20 @@ package com.example.pdflibrary.edit.module;
 
 import android.graphics.RectF;
 
-import com.example.pdflibrary.edit.PdfEditColor;
-
 import java.util.List;
 
-public class EditTextData implements Comparable{
-    public int page;
+public class EditTextData extends EditPdfData implements Comparable{
     public String pageText;
     public int startIndexText;
     public int endIndexText;
-    public PdfEditColor color = null;
-    public List<RectF> rectFList;
+
+    public String text;
+
+    public float scale;
+
+    // 当前触控点在Pdf 页面上的坐标
+    public float pageX;
+    public float pageY;
 
     @Override
     public int compareTo(Object o) {
@@ -26,4 +29,5 @@ public class EditTextData implements Comparable{
         }
         return 0;
     }
+
 }

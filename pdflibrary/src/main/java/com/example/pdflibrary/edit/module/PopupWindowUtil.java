@@ -15,14 +15,14 @@ import com.example.pdflibrary.util.LogUtils;
 
 public class PopupWindowUtil {
 
-    public static PopupWindow showEditTextPopupWindow(EditTextInterfaceWidget contentView, View parentView, float viewX, float viewY, EditTextData editTextData, PopupWindow.OnDismissListener dismissListener){
+    public static PopupWindow showEditTextPopupWindow(EditTextInterfaceWidget contentView, View parentView, float viewX, float viewY, PopupWindow.OnDismissListener dismissListener){
         if (contentView != null){
             return showWindow((View) contentView, parentView, viewX, viewY, false, false, dismissListener);
         }
         return null;
     }
 
-    public static PopupWindow showSelectColorPopupWindow(SelectColorInterfaceWidget contentView, View parentView, float viewX, float viewY, EditTextData editTextData,
+    public static PopupWindow showSelectColorPopupWindow(SelectColorInterfaceWidget contentView, View parentView, float viewX, float viewY,
                                                          boolean needCenter, boolean ignoreY, PopupWindow.OnDismissListener dismissListener){
         if (contentView != null){
             return showWindow((View) contentView, parentView, viewX, viewY, needCenter, ignoreY, dismissListener);

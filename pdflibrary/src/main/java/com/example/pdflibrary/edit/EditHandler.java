@@ -5,8 +5,11 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 
+import com.example.pdflibrary.edit.module.EditGraphData;
 import com.example.pdflibrary.edit.module.EditTextData;
+import com.example.pdflibrary.edit.module.RectFData;
 import com.example.pdflibrary.util.LogUtils;
+import com.example.pdflibrary.util.Size;
 import com.example.pdflibrary.util.SizeF;
 import com.example.pdflibrary.view.PDFView;
 import com.example.pdflibrary.view.PDFViewForeground;
@@ -18,6 +21,8 @@ import java.util.List;
 public class EditHandler extends Handler {
 
     public static final int MSG_TEXT_PAINT = 13;
+
+    public static final int MSG_GRAPH_PAINT = 14;
 
     private static final String TAG = EditHandler.class.getName();
 
@@ -43,6 +48,16 @@ public class EditHandler extends Handler {
         sendMessage(msg);
     }
 
+    public void addEditGraphTask(SelectGraph selectGraphStart, SelectGraph selectGraphEnd, boolean isEnd,PdfEditColor editColor){
+        if (selectGraphStart == null || selectGraphEnd == null){
+            return;
+        }
+        removeMessages(MSG_GRAPH_PAINT);
+        EditGraphTask editGraphTask = new EditGraphTask(selectGraphStart, selectGraphEnd, isEnd, editColor);
+        Message message = obtainMessage(MSG_GRAPH_PAINT, editGraphTask);
+        sendMessage(message);
+    }
+
     @Override
     public void handleMessage(Message message) {
         switch (message.what) {
@@ -50,8 +65,63 @@ public class EditHandler extends Handler {
                 EditTextTask task = (EditTextTask) message.obj;
                 dealEditTextTask(task);
                 break;
+            case MSG_GRAPH_PAINT:
+                EditGraphTask graphTask = (EditGraphTask) message.obj;
+                dealEditGraphTask(graphTask);
+                break;
             default:
                 break;
+        }
+    }
+
+    private void dealEditGraphTask(EditGraphTask editGraphTask){
+        SelectGraph start = editGraphTask.selectGraphStart;
+        SelectGraph end = editGraphTask.selectGraphEnd;
+        if (start.page == end.page){
+            EditGraphData editGraphData = new EditGraphData();
+            editGraphData.color = editGraphTask.pdfEditColor;
+            editGraphData.page = start.page;
+            editGraphData.editGraph = start.pdfEditGraph;
+
+            RectF rectF = new RectF();
+            rectF.left = Math.min(start.canvasX,  end.canvasX);
+            rectF.top = Math.min(start.canvasY, end.canvasY);
+            rectF.right = Math.max(start.canvasX,  end.canvasX);
+            rectF.bottom = Math.max(start.canvasY, end.canvasY);
+
+            RectFData rectFData = new RectFData();
+            rectFData.rectF = rectF;
+            SizeF pageSize = pdfView.pdfFile.getScaledPageSize(start.page, pdfView.getZoom());
+            float pageMainOffset = start.pageMainOffset;
+            float pageSecondaryOffset = start.pageSecondaryOffset;
+            Size originalPageSize= pdfView.pdfFile.getOriginalPageSize(start.page);
+            int originalWidth = originalPageSize.getWidth();
+            int originalHeight = originalPageSize.getHeight();
+            float originalLeft = (rectF.left/pageSize.getWidth())*originalWidth;
+            float originalRight = (rectF.right/pageSize.getWidth())*originalWidth;
+            float originalTop = (1 - rectF.top/pageSize.getHeight())*originalHeight;
+            float originalBottom = (1 - rectF.bottom/pageSize.getHeight())*originalHeight;
+            rectFData.left = Math.min(originalLeft, originalRight);
+            rectFData.right = Math.max(originalLeft, originalRight);
+            rectFData.top = Math.max(originalTop, originalBottom);
+            rectFData.bottom = Math.min(originalTop, originalBottom);
+
+            editGraphData.rectFDataList =  new ArrayList<>();
+            editGraphData.rectFDataList.add(rectFData);
+
+            pdfView.post(new Runnable() {
+                @Override
+                public void run() {
+                    pdfViewForeground.clearEditGraph();
+                    if (editGraphTask.isActionLeave){
+                        pdfViewForeground.addEditGraphData(editGraphData);
+                    }else {
+                        pdfViewForeground.setEditGraphRectF(editGraphData);
+                    }
+                    pdfView.invalidate();
+                }
+            });
+
         }
     }
 
@@ -76,7 +146,7 @@ public class EditHandler extends Handler {
                 String[] lines = result.split("\\r?\\n");
                 int startIndex = startCharIdx;
                 int endIndex;
-                LinkedList<RectF> rectFS = new LinkedList<RectF>();
+                LinkedList<RectFData> rectFS = new LinkedList<RectFData>();
                 SizeF pageSize = pdfView.pdfFile.getScaledPageSize(start.page, pdfView.getZoom());
                 float pageMainOffset = start.pageMainOffset;
                 float pageSecondaryOffset = start.pageSecondaryOffset;
@@ -130,7 +200,20 @@ public class EditHandler extends Handler {
                         left.left -= 5;
                         left.right += 25;
                         left.offset(pageSecondaryOffset, pageMainOffset);
-                        rectFS.add(left);
+                        RectFData rectFData = new RectFData();
+                        rectFData.rectF = left;
+                        Size originalPageSize= pdfView.pdfFile.getOriginalPageSize(start.page);
+                        int originalWidth = originalPageSize.getWidth();
+                        int originalHeight = originalPageSize.getHeight();
+                        float originalLeft = (left.left/pageSize.getWidth())*originalWidth;
+                        float originalRight = (left.right/pageSize.getWidth())*originalWidth;
+                        float originalTop = (1 - left.top/pageSize.getHeight())*originalHeight;
+                        float originalBottom = (1 - left.bottom/pageSize.getHeight())*originalHeight;
+                        rectFData.left = Math.min(originalLeft, originalRight);
+                        rectFData.right = Math.max(originalLeft, originalRight);
+                        rectFData.top = Math.max(originalTop, originalBottom);
+                        rectFData.bottom = Math.min(originalTop, originalBottom);
+                        rectFS.add(rectFData);
                     }
                     startIndex = endIndex + 2;
                 }
@@ -138,16 +221,15 @@ public class EditHandler extends Handler {
                     boolean isActionLeave = editTextTask.isActionLeave;
                     EditTextData editTextData = new EditTextData();
                     editTextData.color = editTextTask.pdfEditColor;
-                    editTextData.rectFList = rectFS;
+                    editTextData.rectFDataList = rectFS;
                     editTextData.page = start.page;
                     editTextData.pageText = start.pageText;
-                    editTextData.startIndexText = startCharIdx;
-                    editTextData.endIndexText = endCharIdx;
+                    editTextData.text = editTextData.pageText.substring(startCharIdx, endCharIdx);
 
                     pdfView.post(new Runnable() {
                         @Override
                         public void run() {
-                            pdfViewForeground.clear();
+                            pdfViewForeground.clearEditText();
                             if (isActionLeave){
                                 pdfViewForeground.addEditTextData(editTextData);
                             }else {
@@ -180,6 +262,20 @@ public class EditHandler extends Handler {
             this.startSelectText = startSelectText;
             this.endSelectText = endSelectText;
             pdfEditColor = color;
+        }
+    }
+
+    private static class EditGraphTask{
+        SelectGraph selectGraphStart;
+        SelectGraph selectGraphEnd;
+        boolean isActionLeave = false;
+        PdfEditColor pdfEditColor = null;
+
+        public EditGraphTask(SelectGraph selectGraphStart, SelectGraph selectGraphEnd, boolean isActionLeave, PdfEditColor pdfEditColor) {
+            this.selectGraphStart = selectGraphStart;
+            this.selectGraphEnd = selectGraphEnd;
+            this.isActionLeave = isActionLeave;
+            this.pdfEditColor = pdfEditColor;
         }
     }
 

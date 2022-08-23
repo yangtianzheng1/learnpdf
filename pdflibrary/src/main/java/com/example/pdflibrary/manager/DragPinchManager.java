@@ -5,7 +5,6 @@ import static com.example.pdflibrary.Constants.Pinch.MINIMUM_ZOOM;
 
 import android.graphics.PointF;
 import android.graphics.RectF;
-import android.text.TextUtils;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.ScaleGestureDetector;
@@ -14,20 +13,19 @@ import android.widget.PopupWindow;
 
 import com.example.pdflibrary.Constants;
 import com.example.pdflibrary.PdfFile;
-import com.example.pdflibrary.edit.EditDataManager;
 import com.example.pdflibrary.edit.EditHandler;
 import com.example.pdflibrary.edit.PdfEditColor;
-import com.example.pdflibrary.edit.PdfEditGraph;
 import com.example.pdflibrary.edit.PdfEditMode;
+import com.example.pdflibrary.edit.SelectGraph;
 import com.example.pdflibrary.edit.SelectText;
 import com.example.pdflibrary.edit.dealinterface.EditTextInterface;
 import com.example.pdflibrary.edit.dealinterface.EditTextInterfaceWidget;
 import com.example.pdflibrary.edit.dealinterface.SelectColorInterface;
 import com.example.pdflibrary.edit.dealinterface.SelectColorInterfaceWidget;
-import com.example.pdflibrary.edit.dealinterface.SelectGraphInterface;
-import com.example.pdflibrary.edit.dealinterface.SelectGraphInterfaceWidget;
+import com.example.pdflibrary.edit.module.EditPdfData;
 import com.example.pdflibrary.edit.module.EditTextData;
 import com.example.pdflibrary.edit.module.PopupWindowUtil;
+import com.example.pdflibrary.edit.module.RectFData;
 import com.example.pdflibrary.element.Link;
 import com.example.pdflibrary.element.LinkTapEvent;
 import com.example.pdflibrary.scroll.ScrollHandle;
@@ -39,8 +37,6 @@ import com.example.pdflibrary.util.ViewCanvasPageCoordinateUtil;
 import com.example.pdflibrary.view.PDFView;
 import com.example.pdflibrary.view.PDFViewForeground;
 
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 public class DragPinchManager implements GestureDetector.OnGestureListener, GestureDetector.OnDoubleTapListener, ScaleGestureDetector.OnScaleGestureListener, View.OnTouchListener {
@@ -62,10 +58,10 @@ public class DragPinchManager implements GestureDetector.OnGestureListener, Gest
     private boolean isEraserMode = false;
 
     private SelectText selectTextStart;
+    private SelectGraph selectGraphStart;
 
     private PDFViewForeground pdfViewForeground;
     private EditHandler editHandler;
-    private EditDataManager editDataManager;
 
     public DragPinchManager(PDFView pdfView, AnimationManager animationManager, PDFViewForeground pdfViewForeground) {
         this.pdfView = pdfView;
@@ -73,8 +69,6 @@ public class DragPinchManager implements GestureDetector.OnGestureListener, Gest
         this.pdfViewForeground = pdfViewForeground;
         gestureDetector = new GestureDetector(pdfView.getContext(), this);
         scaleGestureDetector = new ScaleGestureDetector(pdfView.getContext(), this);
-        editDataManager = new EditDataManager();
-        pdfViewForeground.setEditDataManager(editDataManager);
         pdfView.setOnTouchListener(this);
     }
 
@@ -93,7 +87,6 @@ public class DragPinchManager implements GestureDetector.OnGestureListener, Gest
     @Override
     public boolean onSingleTapConfirmed(MotionEvent e) {
         boolean onTapHandled = pdfView.callbacks.callOnTap(e);
-//        boolean linkTapped = checkLinkTapped(e.getX(), e.getY());
         dealSingleTap(e);
         if (!onTapHandled) {
             ScrollHandle ps = pdfView.getScrollHandle();
@@ -110,83 +103,97 @@ public class DragPinchManager implements GestureDetector.OnGestureListener, Gest
     }
 
     private void dealSingleTap(MotionEvent e){
-        if (isTextEditMode){
-            searchClickItem(getTextByActionTap(e.getX(), e.getY(), false), e.getX(), e.getY());
-        }else if (isGraphEditMode){
-
+        if (isTextEditMode || isGraphEditMode){
+            EditPdfData editPdfData = null;
+            SelectText selectText = getTextByActionTap(e.getX(), e.getY(), false, false);
+            if (isTextEditMode){
+                editPdfData = searchClickItem(selectText);
+            }
+            if (editPdfData == null && isGraphEditMode){
+                editPdfData = searchClickItem(selectText);
+            }
+            showMenuPopupWindow(editPdfData, e.getX(), e.getY());
         }else if (isEraserMode){
 
         }
     }
 
-    private void searchClickItem(SelectText selectText, float viewX, float viewY){
+    private EditPdfData searchClickItem(SelectText selectText){
         if (selectText != null){
-            EditTextData editTextData = editDataManager.findEditTextData(selectText.page, selectText.charIdx);
-            if (editTextData != null){
-                pdfViewForeground.selectEditTextRectFs(editTextData);
-                EditTextInterfaceWidget widget = pdfView.getBusinessInterface().getEditTextWidget();
-                if (widget == null){
-                    return;
+            List<String> keys = pdfViewForeground.editPdfKeyMap.get(selectText.page);
+            if (keys != null && keys.size() > 0){
+                for (String key : keys){
+                    EditPdfData pdfData = pdfViewForeground.editPdfDataMap.get(key);
+                    if (pdfData != null && pdfData.rectFDataList != null && pdfData.rectFDataList.size() > 0 ){
+                        for (RectFData rectFData : pdfData.rectFDataList){
+                            if (selectText.pageX >= rectFData.left && selectText.pageX <= rectFData.right
+                             && selectText.pageY >= rectFData.bottom && selectText.pageY <= rectFData.top){
+                                return pdfData;
+                            }
+                        }
+                    }
                 }
-                PopupWindow popupWindow = PopupWindowUtil.showEditTextPopupWindow(widget, pdfView, viewX, viewY, editTextData, null);
-                widget.setEditTextInterface(new EditTextInterface() {
-                    @Override
-                    public void openColorWindow() {
-                        popupWindow.dismiss();
-                        openColorSelectWindow(editTextData, viewX, viewY);
-                    }
-
-                    @Override
-                    public void copyQuote() {
-
-                    }
-
-                    @Override
-                    public void copyLabel() {
-
-                    }
-
-                    @Override
-                    public void copyLink() {
-
-                    }
-
-                    @Override
-                    public void cleanColor() {
-                        openGraphSelectWindow(viewX, viewY);
-                    }
-                });
-                pdfView.invalidate();
             }
         }
+        return null;
     }
 
-    private void openColorSelectWindow(EditTextData editTextData, float viewX, float viewY){
-        SelectColorInterfaceWidget widget = pdfView.getBusinessInterface().getSelectColorWidget();
+    private void showMenuPopupWindow(EditPdfData editPdfData, float viewX, float viewY){
+        if (editPdfData == null){
+            return;
+        }
+        pdfViewForeground.selectEditData(editPdfData);
+        EditTextInterfaceWidget widget = pdfView.getBusinessInterface().getEditTextWidget();
         if (widget == null){
             return;
         }
+        PopupWindow popupWindow = PopupWindowUtil.showEditTextPopupWindow(widget, pdfView, viewX, viewY, null);
+        widget.setEditTextInterface(new EditTextInterface() {
+            @Override
+            public void openColorWindow() {
+                popupWindow.dismiss();
+                openColorSelectWindow(editPdfData, viewX, viewY);
+            }
+
+            @Override
+            public void copyQuote() {
+
+            }
+
+            @Override
+            public void copyLabel() {
+
+            }
+
+            @Override
+            public void copyLink() {
+
+            }
+
+            @Override
+            public void cleanColor() {
+                popupWindow.dismiss();
+                pdfView.getBusinessInterface().deletePdfAnnotation(editPdfData);
+            }
+        });
+        pdfView.invalidate();
+    }
+
+    private void openColorSelectWindow(EditPdfData editPdfData, float viewX, float viewY){
+        SelectColorInterfaceWidget widget = pdfView.getBusinessInterface().getSelectColorWidget(editPdfData.color);
+        if (widget == null){
+            return;
+        }
+        PopupWindow popupWindow = PopupWindowUtil.showSelectColorPopupWindow(widget, pdfView, viewX, viewY, false, false, null);
         widget.setSelectColorInterface(new SelectColorInterface() {
             @Override
             public void selectColorCallBack(PdfEditColor pdfEditColor) {
-
+                popupWindow.dismiss();
+                editPdfData.color = pdfEditColor;
+                pdfView.getBusinessInterface().updatePdfAnnotation(editPdfData);
+                pdfView.invalidate();
             }
         });
-        PopupWindow popupWindow = PopupWindowUtil.showSelectColorPopupWindow(widget, pdfView, viewX, viewY, editTextData, false, false, null);
-    }
-
-    private void openGraphSelectWindow(float viewX, float viewY){
-        SelectGraphInterfaceWidget widget = pdfView.getBusinessInterface().getSelectGraphWidget();
-        if (widget == null){
-            return;
-        }
-        widget.setSelectGraphInterface(new SelectGraphInterface() {
-            @Override
-            public void selectGraphCallBack(PdfEditGraph pdfEditGraph) {
-
-            }
-        });
-        PopupWindow popupWindow = PopupWindowUtil.showSelectGraphPopupWindow(widget, pdfView, viewX, viewY, null);
     }
 
     private boolean checkLinkTapped(float x, float y) {
@@ -271,9 +278,10 @@ public class DragPinchManager implements GestureDetector.OnGestureListener, Gest
         isEraserMode = false;
         if (pdfView.getCurrentMode() == PdfEditMode.TEXT) {
             isTextEditMode = true;
-            selectTextStart = getTextByActionTap(e.getX(), e.getY(), false);
+            selectTextStart = getTextByActionTap(e.getX(), e.getY(), false, true);
         } else if (pdfView.getCurrentMode() == PdfEditMode.GRAPH) {
             isGraphEditMode = true;
+            selectGraphStart = getSelectGraph(e.getX(), e.getY(), false);
         } else if (pdfView.getCurrentMode() == PdfEditMode.ERASER) {
             isEraserMode = true;
         }
@@ -289,7 +297,7 @@ public class DragPinchManager implements GestureDetector.OnGestureListener, Gest
         return false;
     }
 
-    private SelectText getTextByActionTap(float x, float y, boolean isMoveOrUp) {
+    private SelectText getTextByActionTap(float x, float y, boolean isMoveOrUp, boolean needText) {
         SelectText selectText = new SelectText();
         selectText.scale = pdfView.getZoom();
         ResultCoordinate resultCoordinate = ViewCanvasPageCoordinateUtil.viewCoordinateToCanvas(x, y,
@@ -316,7 +324,9 @@ public class DragPinchManager implements GestureDetector.OnGestureListener, Gest
                     Size originalSize = pdfView.pdfFile.getOriginalPageSize(page);
                     selectText.pageX = (float) (dx/pageSize.getWidth() * originalSize.getWidth());
                     selectText.pageY = (float) ((1 - dy/pageSize.getHeight()) * originalSize.getHeight());
-                    selectText.charIdx = pdfView.pdfFile.getCharIndexAtCoord(page, pageSize.getWidth(), pageSize.getHeight(), selectText.textPtr, dx, dy, 10, 10);
+                    if (needText){
+                        selectText.charIdx = pdfView.pdfFile.getCharIndexAtCoord(page, pageSize.getWidth(), pageSize.getHeight(), selectText.textPtr, dx, dy, 10, 10);
+                    }
                     return selectText;
                 }
             }
@@ -331,18 +341,41 @@ public class DragPinchManager implements GestureDetector.OnGestureListener, Gest
         Size originalSize = pdfView.pdfFile.getOriginalPageSize(page);
         selectText.pageX = (float) (dx/pageSize.getWidth() * originalSize.getWidth());
         selectText.pageY = (float) ((1 - dy/pageSize.getHeight()) * originalSize.getHeight());
-        long textId = pdfView.pdfFile.getPageTextId(page);
-        selectText.textPtr = textId;
-        selectText.pageText = pdfView.pdfFile.getTextFromTextPtr(textId);
-        selectText.charIdx = pdfView.pdfFile.getCharIndexAtCoord(page, pageSize.getWidth(), pageSize.getHeight(), textId, dx, dy, 10, 10);
+        if (needText){
+            long textId = pdfView.pdfFile.getPageTextId(page);
+            selectText.textPtr = textId;
+            selectText.pageText = pdfView.pdfFile.getTextFromTextPtr(textId);
+            selectText.charIdx = pdfView.pdfFile.getCharIndexAtCoord(page, pageSize.getWidth(), pageSize.getHeight(), textId, dx, dy, 10, 10);
+        }
         return selectText;
+    }
+
+    private SelectGraph getSelectGraph(float x, float y, boolean isMoveOrUp){
+        SelectGraph selectGraph = new SelectGraph();
+        selectGraph.viewX = x;
+        selectGraph.viewY = y;
+        selectGraph.pdfEditGraph = pdfView.getPdfEditGraph();
+        ResultCoordinate resultCoordinate = ViewCanvasPageCoordinateUtil.viewCoordinateToCanvas(x, y,
+                pdfView.getCurrentXOffset(), pdfView.getCurrentYOffset());
+        selectGraph.canvasX = resultCoordinate.x;
+        selectGraph.canvasY = resultCoordinate.y;
+
+        int page = ViewCanvasPageCoordinateUtil.getPageIndexByCanvasXY(resultCoordinate.x.longValue(), resultCoordinate.y.longValue(), pdfView.getZoom(),
+                pdfView.isSwipeVertical(), pdfView.pdfFile);
+        selectGraph.page = page;
+        SizeF pageSize = pdfView.pdfFile.getScaledPageSize(page, pdfView.getZoom());
+        float offsetY = pdfView.pdfFile.getPageOffset(page, pdfView.getZoom());
+        float offsetX = pdfView.pdfFile.getSecondaryPageOffset(page, pdfView.getZoom());
+        selectGraph.pageMainOffset = offsetY;
+        selectGraph.pageSecondaryOffset = offsetX;
+        return selectGraph;
     }
 
     @Override
     public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX, float distanceY) {
         LogUtils.logD(TAG, " onScroll  X " + e1.getX() + " Y " + e1.getY() + "  X  " + e2.getX() + " Y " + e2.getY());
         scrolling = true;
-        if (isTextEditMode) {
+        if (isTextEditMode || isGraphEditMode) {
             return true;
         }
         if (pdfView.isZooming() || pdfView.isSwipeEnabled()) {
@@ -464,7 +497,7 @@ public class DragPinchManager implements GestureDetector.OnGestureListener, Gest
             if (isTextEditMode) {
                 textEdit(event.getX(), event.getY(), actionUp);
             } else if (isGraphEditMode) {
-                graphEdit(event.getX(), event.getY());
+                graphEdit(event.getX(), event.getY(), actionUp);
             } else if (isEraserMode) {
                 eraser(event.getX(), event.getY());
             }
@@ -493,12 +526,21 @@ public class DragPinchManager implements GestureDetector.OnGestureListener, Gest
         }
         long start = System.currentTimeMillis();
         if (editHandler != null){
-            editHandler.addEditTextTask(selectTextStart, getTextByActionTap(x, y, true), isEnd, pdfView.getEditColor());
+            editHandler.addEditTextTask(selectTextStart, getTextByActionTap(x, y, true, true), isEnd, pdfView.getEditColor());
         }
         LogUtils.logD(TAG, " costTime " + (System.currentTimeMillis() - start), true);
     }
 
-    private void graphEdit(float x, float y) {
+    private void graphEdit(float x, float y, boolean isEnd) {
+        step++;
+        if (step == 3 || isEnd){
+            step = 0;
+        }else {
+            return;
+        }
+        if (editHandler != null){
+            editHandler.addEditGraphTask(selectGraphStart, getSelectGraph(x, y , true), isEnd, pdfView.getEditColor());
+        }
 
     }
 
