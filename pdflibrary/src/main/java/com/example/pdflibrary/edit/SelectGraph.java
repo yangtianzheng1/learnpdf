@@ -9,6 +9,9 @@ public class SelectGraph {
     public float viewX;
     public float viewY;
 
+    public float pageX;
+    public float pageY;
+
     public int page;
 
     // 当前页面左上点 相对于画布原点的便宜点 分为横屏和竖屏模式

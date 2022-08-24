@@ -22,7 +22,7 @@ import java.util.TreeMap;
 
 public class PDFViewForeground {
 
-    private String TAG =  "PDFViewForeground";
+    private String TAG = "PDFViewForeground";
 
     private List<RectFData> editTextRectFs = new LinkedList<>();
     private List<RectFData> selectEditTextRectFs = new LinkedList<>();
@@ -31,18 +31,15 @@ public class PDFViewForeground {
 
     private EditGraphData selectGraphData = null;
 
-    public Map<Integer, List<String>>  editPdfKeyMap = new TreeMap<>();
+    public Map<Integer, List<String>> editPdfKeyMap = new TreeMap<>();
 
-    public Map<String, EditPdfData>  editPdfDataMap = new HashMap<>();
+    public Map<String, EditPdfData> editPdfDataMap = new HashMap<>();
 
     private Paint paint;
     private Paint selectPaint;
     private Paint graphPaint;
 
     private PDFView pdfView;
-
-    public void setEditDataManager() {
-    }
 
     public PDFViewForeground(PDFView pdfView) {
         paint = new Paint();
@@ -54,32 +51,32 @@ public class PDFViewForeground {
         selectPaint.setPathEffect(new DashPathEffect(new float[]{9, 5}, 0));
     }
 
-    public void onDraw(Canvas canvas){
+    public void onDraw(Canvas canvas) {
 
         paint.setColor(pdfView.getEditColor().getColor());
         graphPaint.setColor(pdfView.getEditColor().getColor());
         selectPaint.setColor(pdfView.getEditColor().getColor());
 
-        if (editTextRectFs.size() > 0){
-            for (RectFData rectFData : editTextRectFs){
+        if (editTextRectFs.size() > 0) {
+            for (RectFData rectFData : editTextRectFs) {
                 canvas.drawRect(rectFData.rectF, paint);
             }
         }
 
-        if (editGraphData != null){
-            if (editGraphData.editGraph == PdfEditGraph.Circle){
-                if (editGraphData.rectFDataList != null && editGraphData.rectFDataList.size() > 0 ){
+        if (editGraphData != null) {
+            if (editGraphData.editGraph == PdfEditGraph.Circle) {
+                if (editGraphData.rectFDataList != null && editGraphData.rectFDataList.size() > 0) {
                     canvas.drawOval(editGraphData.rectFDataList.get(0).rectF, graphPaint);
                 }
-            }else {
-                if (editGraphData.rectFDataList != null && editGraphData.rectFDataList.size() > 0 ){
+            } else {
+                if (editGraphData.rectFDataList != null && editGraphData.rectFDataList.size() > 0) {
                     canvas.drawRect(editGraphData.rectFDataList.get(0).rectF, graphPaint);
                 }
             }
         }
 
-        if (selectEditTextRectFs != null && selectEditTextRectFs.size() > 0 ){
-            for (RectFData rectFData : selectEditTextRectFs){
+        if (selectEditTextRectFs != null && selectEditTextRectFs.size() > 0) {
+            for (RectFData rectFData : selectEditTextRectFs) {
                 canvas.drawRect(rectFData.rectF, selectPaint);
             }
         }
@@ -91,45 +88,45 @@ public class PDFViewForeground {
         drawPage(currentPage + 1, canvas);
     }
 
-    private void drawRectFData(int page, RectFData rectFData, Canvas canvas, Paint paint, boolean isOval){
-        if (rectFData.rectF == null){
+    private void drawRectFData(int page, RectFData rectFData, Canvas canvas, Paint paint, boolean isOval) {
+        if (rectFData.rectF == null) {
             Size originalSize = pdfView.pdfFile.getOriginalPageSize(page);
             SizeF sizeF = pdfView.pdfFile.getPageSize(page);
             float left = rectFData.left / originalSize.getWidth() * sizeF.getWidth();
-            float right = rectFData.right/originalSize.getWidth() * sizeF.getWidth();
-            float top = (1 - rectFData.top/originalSize.getHeight()) * sizeF.getHeight();
-            float bottom = (1 - rectFData.bottom/originalSize.getHeight()) * sizeF.getHeight();
+            float right = rectFData.right / originalSize.getWidth() * sizeF.getWidth();
+            float top = (1 - rectFData.top / originalSize.getHeight()) * sizeF.getHeight();
+            float bottom = (1 - rectFData.bottom / originalSize.getHeight()) * sizeF.getHeight();
             RectF rectF = new RectF(left, top, right, bottom);
             float mainOffset = pdfView.pdfFile.getPageOffset(page, 1);
             float secondOffset = pdfView.pdfFile.getSecondaryPageOffset(page, 1);
             rectF.offset(secondOffset, mainOffset);
             rectFData.rectF = rectF;
         }
-        if (isOval){
+        if (isOval) {
             canvas.drawOval(rectFData.rectF, paint);
-        }else {
+        } else {
             canvas.drawRect(rectFData.rectF, paint);
         }
     }
 
-    private void drawPage(int page, Canvas canvas){
+    private void drawPage(int page, Canvas canvas) {
         List<String> blockIds = editPdfKeyMap.get(page);
-        if (blockIds != null && blockIds.size() > 0){
-            for (String item : blockIds){
+        if (blockIds != null && blockIds.size() > 0) {
+            for (String item : blockIds) {
                 EditPdfData editPdfData = editPdfDataMap.get(item);
-                if (editPdfData != null){
+                if (editPdfData != null) {
                     paint.setColor(editPdfData.color.getColor());
-                    if (editPdfData instanceof EditTextData){
-                        for (RectFData rectFData : editPdfData.rectFDataList){
+                    if (editPdfData instanceof EditTextData) {
+                        for (RectFData rectFData : editPdfData.rectFDataList) {
                             drawRectFData(page, rectFData, canvas, paint, false);
                         }
-                    }else if (editPdfData instanceof EditGraphData){
-                        if (((EditGraphData)editPdfData).editGraph == PdfEditGraph.Circle){
-                            for (RectFData rectFData : editPdfData.rectFDataList){
+                    } else if (editPdfData instanceof EditGraphData) {
+                        if (((EditGraphData) editPdfData).editGraph == PdfEditGraph.Circle) {
+                            for (RectFData rectFData : editPdfData.rectFDataList) {
                                 drawRectFData(page, rectFData, canvas, graphPaint, false);
                             }
-                        }else {
-                            for (RectFData rectFData : editPdfData.rectFDataList){
+                        } else {
+                            for (RectFData rectFData : editPdfData.rectFDataList) {
                                 drawRectFData(page, rectFData, canvas, graphPaint, true);
                             }
                         }
@@ -139,70 +136,85 @@ public class PDFViewForeground {
         }
     }
 
-    public void clearEditText(){
+    public void clearEditText() {
         editTextRectFs.clear();
     }
 
-    public void clearEditGraph(){
+    public void clearEditGraph() {
         editGraphData = null;
     }
 
-    public void setEditGraphRectF(EditGraphData editGraphData){
+    public void setEditGraphRectF(EditGraphData editGraphData) {
         this.editGraphData = editGraphData;
     }
 
-    public void addEditGraphData(EditGraphData editGraphData){
+    public void addEditGraphData(EditGraphData editGraphData) {
         pdfView.getBusinessInterface().createPdfAnnotation(editGraphData);
     }
 
-    public void addEditTextRect(List<RectFData> rectFList){
+    public void addEditTextRect(List<RectFData> rectFList) {
         editTextRectFs.addAll(rectFList);
     }
 
-    public void addEditTextData(EditTextData editTextData){
+    public void addEditTextData(EditTextData editTextData) {
         pdfView.getBusinessInterface().createPdfAnnotation(editTextData);
     }
 
-    public void addOrUpdateData(int page, String uuid, EditPdfData data){
+    public void addOrUpdateData(int page, String uuid, EditPdfData data) {
         List<String> uuids = editPdfKeyMap.get(page);
-        if (uuids == null){
+        if (uuids == null) {
             uuids = new ArrayList<>();
             uuids.add(uuid);
             editPdfKeyMap.put(page, uuids);
-        }else {
-            if (!uuids.contains(uuid)){
+        } else {
+            if (!uuids.contains(uuid)) {
                 uuids.add(uuid);
             }
         }
         editPdfDataMap.put(uuid, data);
     }
 
-    public void clearAllData(){
+    public void clearAllData() {
         editPdfKeyMap.clear();
         editPdfDataMap.clear();
     }
 
-    public void deleteData(int page, String uuid){
+    public void deleteData(int page, String uuid) {
         List<String> uuids = editPdfKeyMap.get(page);
-        if (uuids != null){
+        if (uuids != null) {
             uuids.remove(uuid);
         }
         editPdfDataMap.remove(uuid);
     }
 
-    public void selectEditData(EditPdfData editPdfData){
-        if (editPdfData instanceof EditTextData){
+    public void selectEditData(EditPdfData editPdfData) {
+        if (editPdfData instanceof EditTextData) {
             selectEditTextRectFs = editPdfData.rectFDataList;
-        }else if (editPdfData instanceof EditGraphData){
+        } else if (editPdfData instanceof EditGraphData) {
             this.selectGraphData = (EditGraphData) editPdfData;
         }
     }
 
-    public void cleanSelectEditTextRectFs(){
+    public List<EditPdfData> getSortData() {
+        List<EditPdfData> editPdfDataList = new LinkedList<>();
+        for (List<String> value : editPdfKeyMap.values()) {
+            if (value != null) {
+                for (String key : value) {
+                    EditPdfData editPdfData = editPdfDataMap.get(key);
+                    if (editPdfData != null) {
+                        editPdfDataList.add(editPdfData);
+                    }
+                }
+            }
+        }
+        return editPdfDataList;
+    }
+
+    public void cleanSelectEditTextRectFs() {
         selectEditTextRectFs = null;
     }
 
-    public void zoom(float zoom){
+    public void zoom(float zoom) {
 
     }
 

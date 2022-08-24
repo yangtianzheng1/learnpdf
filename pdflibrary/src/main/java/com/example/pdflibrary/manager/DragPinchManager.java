@@ -114,7 +114,11 @@ public class DragPinchManager implements GestureDetector.OnGestureListener, Gest
             }
             showMenuPopupWindow(editPdfData, e.getX(), e.getY());
         }else if (isEraserMode){
-
+            SelectText selectText = getTextByActionTap(e.getX(), e.getY(), false, false);
+            EditPdfData editPdfData = searchClickItem(selectText);
+            if (editPdfData != null){
+                pdfView.getBusinessInterface().deletePdfAnnotation(editPdfData);
+            }
         }
     }
 
@@ -281,7 +285,7 @@ public class DragPinchManager implements GestureDetector.OnGestureListener, Gest
             selectTextStart = getTextByActionTap(e.getX(), e.getY(), false, true);
         } else if (pdfView.getCurrentMode() == PdfEditMode.GRAPH) {
             isGraphEditMode = true;
-            selectGraphStart = getSelectGraph(e.getX(), e.getY(), false);
+            selectGraphStart = getSelectGraph(e.getX(), e.getY());
         } else if (pdfView.getCurrentMode() == PdfEditMode.ERASER) {
             isEraserMode = true;
         }
@@ -350,10 +354,11 @@ public class DragPinchManager implements GestureDetector.OnGestureListener, Gest
         return selectText;
     }
 
-    private SelectGraph getSelectGraph(float x, float y, boolean isMoveOrUp){
+    private SelectGraph getSelectGraph(float x, float y){
         SelectGraph selectGraph = new SelectGraph();
         selectGraph.viewX = x;
         selectGraph.viewY = y;
+
         selectGraph.pdfEditGraph = pdfView.getPdfEditGraph();
         ResultCoordinate resultCoordinate = ViewCanvasPageCoordinateUtil.viewCoordinateToCanvas(x, y,
                 pdfView.getCurrentXOffset(), pdfView.getCurrentYOffset());
@@ -368,6 +373,11 @@ public class DragPinchManager implements GestureDetector.OnGestureListener, Gest
         float offsetX = pdfView.pdfFile.getSecondaryPageOffset(page, pdfView.getZoom());
         selectGraph.pageMainOffset = offsetY;
         selectGraph.pageSecondaryOffset = offsetX;
+        double dx = resultCoordinate.x - offsetX;
+        double dy = resultCoordinate.y - offsetY;
+        Size originalSize = pdfView.pdfFile.getOriginalPageSize(page);
+        selectGraph.pageX = (float) (dx/pageSize.getWidth() * originalSize.getWidth());
+        selectGraph.pageY = (float) ((1 - dy/pageSize.getHeight()) * originalSize.getHeight());
         return selectGraph;
     }
 
@@ -539,7 +549,7 @@ public class DragPinchManager implements GestureDetector.OnGestureListener, Gest
             return;
         }
         if (editHandler != null){
-            editHandler.addEditGraphTask(selectGraphStart, getSelectGraph(x, y , true), isEnd, pdfView.getEditColor());
+            editHandler.addEditGraphTask(selectGraphStart, getSelectGraph(x, y ), isEnd, pdfView.getEditColor());
         }
 
     }

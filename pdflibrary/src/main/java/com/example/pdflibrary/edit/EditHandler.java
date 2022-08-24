@@ -1,5 +1,8 @@
 package com.example.pdflibrary.edit;
 
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.Rect;
 import android.graphics.RectF;
 import android.os.Handler;
 import android.os.Looper;
@@ -14,6 +17,8 @@ import com.example.pdflibrary.util.SizeF;
 import com.example.pdflibrary.view.PDFView;
 import com.example.pdflibrary.view.PDFViewForeground;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
@@ -91,24 +96,21 @@ public class EditHandler extends Handler {
 
             RectFData rectFData = new RectFData();
             rectFData.rectF = rectF;
-            SizeF pageSize = pdfView.pdfFile.getScaledPageSize(start.page, pdfView.getZoom());
-            float pageMainOffset = start.pageMainOffset;
-            float pageSecondaryOffset = start.pageSecondaryOffset;
-            Size originalPageSize= pdfView.pdfFile.getOriginalPageSize(start.page);
-            int originalWidth = originalPageSize.getWidth();
-            int originalHeight = originalPageSize.getHeight();
-            float originalLeft = (rectF.left/pageSize.getWidth())*originalWidth;
-            float originalRight = (rectF.right/pageSize.getWidth())*originalWidth;
-            float originalTop = (1 - rectF.top/pageSize.getHeight())*originalHeight;
-            float originalBottom = (1 - rectF.bottom/pageSize.getHeight())*originalHeight;
-            rectFData.left = Math.min(originalLeft, originalRight);
-            rectFData.right = Math.max(originalLeft, originalRight);
-            rectFData.top = Math.max(originalTop, originalBottom);
-            rectFData.bottom = Math.min(originalTop, originalBottom);
+            rectFData.left = Math.min(start.pageX, end.pageX);
+            rectFData.right = Math.max(start.pageX, end.pageX);
+            rectFData.top = Math.max(start.pageY, end.pageY);
+            rectFData.bottom = Math.min(start.pageY, end.pageY);
 
             editGraphData.rectFDataList =  new ArrayList<>();
             editGraphData.rectFDataList.add(rectFData);
 
+            if (editGraphTask.isActionLeave){
+                editGraphData.viewRect = new Rect();
+                editGraphData.viewRect.left = (int) Math.min(start.viewX, end.viewX);
+                editGraphData.viewRect.right = (int) Math.max(start.viewX, end.viewX);
+                editGraphData.viewRect.top = (int) Math.min(start.viewY, end.viewY);
+                editGraphData.viewRect.bottom = (int) Math.max(start.viewY, end.viewY);
+            }
             pdfView.post(new Runnable() {
                 @Override
                 public void run() {
@@ -121,7 +123,6 @@ public class EditHandler extends Handler {
                     pdfView.invalidate();
                 }
             });
-
         }
     }
 
