@@ -1,14 +1,16 @@
 package com.example.pdflibrary.edit;
 
-import android.graphics.Bitmap;
-import android.graphics.Canvas;
+import static com.example.pdflibrary.edit.PdfEditGraph.Rectangle;
+
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 
+import com.example.pdflibrary.edit.dealinterface.AnnotationActionInterface;
 import com.example.pdflibrary.edit.module.EditGraphData;
+import com.example.pdflibrary.edit.module.EditPdfData;
 import com.example.pdflibrary.edit.module.EditTextData;
 import com.example.pdflibrary.edit.module.RectFData;
 import com.example.pdflibrary.util.LogUtils;
@@ -17,8 +19,6 @@ import com.example.pdflibrary.util.SizeF;
 import com.example.pdflibrary.view.PDFView;
 import com.example.pdflibrary.view.PDFViewForeground;
 
-import java.io.File;
-import java.io.FileOutputStream;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
@@ -82,10 +82,13 @@ public class EditHandler extends Handler {
     private void dealEditGraphTask(EditGraphTask editGraphTask){
         SelectGraph start = editGraphTask.selectGraphStart;
         SelectGraph end = editGraphTask.selectGraphEnd;
+        if (start == null || end == null){
+            return;
+        }
         if (start.page == end.page){
             EditGraphData editGraphData = new EditGraphData();
             editGraphData.color = editGraphTask.pdfEditColor;
-            editGraphData.page = start.page;
+            editGraphData.page = start.page + 1;
             editGraphData.editGraph = start.pdfEditGraph;
 
             RectF rectF = new RectF();
@@ -94,8 +97,8 @@ public class EditHandler extends Handler {
             rectF.right = Math.max(start.canvasX,  end.canvasX);
             rectF.bottom = Math.max(start.canvasY, end.canvasY);
 
-            RectFData rectFData = new RectFData();
-            rectFData.rectF = rectF;
+            RectFData rectFData = new RectFData(rectF, start.zoom);
+
             rectFData.left = Math.min(start.pageX, end.pageX);
             rectFData.right = Math.max(start.pageX, end.pageX);
             rectFData.top = Math.max(start.pageY, end.pageY);
@@ -111,19 +114,41 @@ public class EditHandler extends Handler {
                 editGraphData.viewRect.top = (int) Math.min(start.viewY, end.viewY);
                 editGraphData.viewRect.bottom = (int) Math.max(start.viewY, end.viewY);
             }
-            pdfView.post(new Runnable() {
-                @Override
-                public void run() {
-                    pdfViewForeground.clearEditGraph();
-                    if (editGraphTask.isActionLeave){
-                        pdfViewForeground.addEditGraphData(editGraphData);
-                    }else {
-                        pdfViewForeground.setEditGraphRectF(editGraphData);
+            doUiTask(editGraphTask.isActionLeave, editGraphData, editGraphData.rectFDataList);
+        }
+    }
+
+    private void doUiTask(boolean isEnd, EditPdfData editPdfData, List<RectFData> rectFList){
+        if (pdfView == null){
+            return;
+        }
+        pdfView.post(new Runnable() {
+            @Override
+            public void run() {
+                if (isEnd){
+                    pdfViewForeground.addEditPdfData(editPdfData, new AnnotationActionInterface() {
+                        @Override
+                        public void createUpdateDeleteCallBack(int status) {
+                            if (status == 0 && pdfView != null && pdfViewForeground != null){
+                                pdfViewForeground.clearDrawData();
+                                pdfViewForeground.addOrUpdateData(editPdfData.page, editPdfData.key, editPdfData);
+                                pdfView.invalidate();
+                            }
+                        }
+                    });
+                }else {
+                    pdfViewForeground.clearDrawData();
+                    if (editPdfData instanceof EditTextData){
+                        PdfAnnotationDrawData pdfAnnotationDrawData = new PdfAnnotationDrawData(true, true, rectFList);
+                        pdfViewForeground.addDrawData(pdfAnnotationDrawData);
+                    }else if (editPdfData instanceof EditGraphData){
+                        PdfAnnotationDrawData pdfAnnotationDrawData = new PdfAnnotationDrawData(false, ((EditGraphData) editPdfData).editGraph == Rectangle, rectFList);
+                        pdfViewForeground.addDrawData(pdfAnnotationDrawData);
                     }
                     pdfView.invalidate();
                 }
-            });
-        }
+            }
+        });
     }
 
     private void dealEditTextTask(EditTextTask editTextTask) {
@@ -142,13 +167,11 @@ public class EditHandler extends Handler {
                     endCharIdx = temp;
                 }
                 String result = start.pageText.substring(startCharIdx, endCharIdx);
-                LogUtils.logD(TAG, " result " + result, true);
-                LogUtils.logD(TAG, " length " + result.length(), true);
                 String[] lines = result.split("\\r?\\n");
                 int startIndex = startCharIdx;
                 int endIndex;
                 LinkedList<RectFData> rectFS = new LinkedList<RectFData>();
-                SizeF pageSize = pdfView.pdfFile.getScaledPageSize(start.page, pdfView.getZoom());
+                SizeF pageSize = pdfView.pdfFile.getScaledPageSize(start.page, start.zoom);
                 float pageMainOffset = start.pageMainOffset;
                 float pageSecondaryOffset = start.pageSecondaryOffset;
                 for (String string : lines) {
@@ -184,10 +207,8 @@ public class EditHandler extends Handler {
                     }
                     if (subRectFS.size() > 0) {
                         RectF left = subRectFS.get(0);
-                        LogUtils.logD(TAG, " rectF  left" + left, false);
                         if (subRectFS.size() > 1) {
                             RectF right = subRectFS.get(subRectFS.size() - 1);
-                            LogUtils.logD(TAG, " rectF  right " + right, false);
                             left.right = right.right;
                             if (left.top > right.top) {
                                 left.top = right.top;
@@ -199,10 +220,21 @@ public class EditHandler extends Handler {
                         left.top -= 10;
                         left.bottom += 15;
                         left.left -= 5;
-                        left.right += 25;
-                        left.offset(pageSecondaryOffset, pageMainOffset);
-                        RectFData rectFData = new RectFData();
-                        rectFData.rectF = left;
+                        left.right += 20;
+                        if (left.left < 0){
+                            left.left = 0;
+                        }
+                        if (left.top < 0){
+                            left.top = 0;
+                        }
+                        if (left.right > pageSize.getWidth()){
+                            left.right = pageSize.getWidth();
+                        }
+                        if (left.bottom > pageSize.getHeight()){
+                            left.bottom = pageSize.getHeight();
+                        }
+
+                        RectFData rectFData = new RectFData(left, start.zoom);
                         Size originalPageSize= pdfView.pdfFile.getOriginalPageSize(start.page);
                         int originalWidth = originalPageSize.getWidth();
                         int originalHeight = originalPageSize.getHeight();
@@ -214,6 +246,13 @@ public class EditHandler extends Handler {
                         rectFData.right = Math.max(originalLeft, originalRight);
                         rectFData.top = Math.max(originalTop, originalBottom);
                         rectFData.bottom = Math.min(originalTop, originalBottom);
+
+                        if (start.isVertical){
+                            left.offset(pageSecondaryOffset, pageMainOffset);
+                        }else {
+                            left.offset(pageMainOffset, pageSecondaryOffset);
+                        }
+
                         rectFS.add(rectFData);
                     }
                     startIndex = endIndex + 2;
@@ -223,22 +262,9 @@ public class EditHandler extends Handler {
                     EditTextData editTextData = new EditTextData();
                     editTextData.color = editTextTask.pdfEditColor;
                     editTextData.rectFDataList = rectFS;
-                    editTextData.page = start.page;
-                    editTextData.pageText = start.pageText;
-                    editTextData.text = editTextData.pageText.substring(startCharIdx, endCharIdx);
-
-                    pdfView.post(new Runnable() {
-                        @Override
-                        public void run() {
-                            pdfViewForeground.clearEditText();
-                            if (isActionLeave){
-                                pdfViewForeground.addEditTextData(editTextData);
-                            }else {
-                                pdfViewForeground.addEditTextRect(rectFS);
-                            }
-                            pdfView.invalidate();
-                        }
-                    });
+                    editTextData.page = start.page + 1;
+                    editTextData.text =  start.pageText.substring(startCharIdx, endCharIdx);
+                    doUiTask(isActionLeave, editTextData, rectFS);
                 }
             }
         }

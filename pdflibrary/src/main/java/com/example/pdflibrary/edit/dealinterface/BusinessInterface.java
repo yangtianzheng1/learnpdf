@@ -11,9 +11,9 @@ public interface BusinessInterface {
 
     SelectGraphInterfaceWidget getSelectGraphWidget();
 
-    void createPdfAnnotation(EditPdfData data);
+    void createPdfAnnotation(EditPdfData data, AnnotationActionInterface annotationActionInterface);
 
-    void updatePdfAnnotation(EditPdfData data);
+    void updatePdfAnnotation(EditPdfData data, AnnotationActionInterface annotationActionInterface);
 
-    void deletePdfAnnotation(EditPdfData data);
+    void deletePdfAnnotation(EditPdfData data, AnnotationActionInterface annotationActionInterface);
 }

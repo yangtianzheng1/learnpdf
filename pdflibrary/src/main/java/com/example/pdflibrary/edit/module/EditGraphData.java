@@ -23,5 +23,4 @@ public class EditGraphData extends EditPdfData{
     public int height;
 
     public Rect viewRect;
-
 }

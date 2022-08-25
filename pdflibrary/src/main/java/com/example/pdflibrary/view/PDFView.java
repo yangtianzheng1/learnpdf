@@ -78,8 +78,8 @@ public class PDFView extends RelativeLayout {
     public static final float DEFAULT_MIN_SCALE = 1.0f;
 
     private float minZoom = DEFAULT_MIN_SCALE;
-    private float midZoom = DEFAULT_MIN_SCALE;
-    private float maxZoom = DEFAULT_MIN_SCALE;
+    private float midZoom = DEFAULT_MID_SCALE;
+    private float maxZoom = DEFAULT_MID_SCALE;
 
     public void setBusinessInterface(BusinessInterface businessInterface) {
         this.businessInterface = businessInterface;
@@ -1043,7 +1043,6 @@ public class PDFView extends RelativeLayout {
      */
     public void zoomTo(float zoom) {
         this.zoom = zoom;
-        pdfViewForeground.zoom(zoom);
     }
 
     /**
