@@ -16,4 +16,13 @@ public interface BusinessInterface {
     void updatePdfAnnotation(EditPdfData data, AnnotationActionInterface annotationActionInterface);
 
     void deletePdfAnnotation(EditPdfData data, AnnotationActionInterface annotationActionInterface);
+
+    // 引用
+    void copyQuote(EditPdfData editPdfData);
+
+    // 内容
+    void copyLabel(EditPdfData editPdfData);
+
+    // 链接
+    void copyLink(EditPdfData editPdfData);
 }

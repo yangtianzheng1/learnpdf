@@ -218,7 +218,7 @@ public class EditHandler extends Handler {
                             }
                         }
                         left.top -= 10;
-                        left.bottom += 15;
+                        left.bottom += 25;
                         left.left -= 5;
                         left.right += 20;
                         if (left.left < 0){

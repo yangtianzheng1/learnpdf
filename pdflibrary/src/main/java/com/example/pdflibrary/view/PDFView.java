@@ -79,7 +79,7 @@ public class PDFView extends RelativeLayout {
 
     private float minZoom = DEFAULT_MIN_SCALE;
     private float midZoom = DEFAULT_MID_SCALE;
-    private float maxZoom = DEFAULT_MID_SCALE;
+    private float maxZoom = DEFAULT_MAX_SCALE;
 
     public void setBusinessInterface(BusinessInterface businessInterface) {
         this.businessInterface = businessInterface;
