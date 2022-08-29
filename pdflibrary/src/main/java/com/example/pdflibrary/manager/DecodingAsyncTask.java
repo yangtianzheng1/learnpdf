@@ -52,8 +52,8 @@ public class DecodingAsyncTask extends AsyncTask<Void, Void, Throwable> {
     }
 
     private Size getViewSize(PDFView pdfView) {
-//        return new Size(pdfView.getWidth(), pdfView.getHeight());
-        return new Size(pdfView.getWidth() - 2 * DPTOPXUtil.getPX(pdfView.getContext(), 260), pdfView.getHeight());
+        return new Size(pdfView.getWidth(), pdfView.getHeight());
+//        return new Size(pdfView.getWidth() - 2 * DPTOPXUtil.getPX(pdfView.getContext(), 260), pdfView.getHeight());
     }
 
     @Override
